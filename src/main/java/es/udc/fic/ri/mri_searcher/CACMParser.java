@@ -40,10 +40,10 @@ public class CACMParser {
 		/* The tag REUTERS identifies the beginning and end of each article */
 
 		for (int i = 0; i < lines.length; ++i) {
-			if (!lines[i].startsWith("<REUTERS"))
+			if (!lines[i].startsWith(".I"))
 				continue;
 			StringBuilder sb = new StringBuilder();
-			while (!lines[i].startsWith("</REUTERS")) {
+			while (!lines[i].startsWith(".I")) {
 				sb.append(lines[i++]);
 				sb.append("\n");
 			}
@@ -69,32 +69,23 @@ public class CACMParser {
 		/* Each topic inside TOPICS is identified with a tag D */
 		/* If the BODY ends with boiler plate text, this text is removed */
 
-		//OLDID="403" NEWID="12175"
-		int oldIDstart = text.indexOf("OLDID=\"") + 7;
-		int oldIDfinish = text.indexOf("\"", oldIDstart);
-		String oldID = text.substring(oldIDstart, oldIDfinish);
-		int newIDstart = text.indexOf("NEWID=\"") + 7;
-		int newIDfinish = text.indexOf("\"", newIDstart);
-		String newID = text.substring(newIDstart, newIDfinish);
-		//System.out.println(text.split("\n")[0] + "\t" + oldID + "\t" + newID);
-		String topics = extract("TOPICS", text, true);
-		String title = extract("TITLE", text, true);
-		String dateline = extract("DATELINE", text, true);
-		String date = extract("DATE", text, true);
-		String body = extract("BODY", text, true);
-		if (body.endsWith(END_BOILERPLATE_1)
-				|| body.endsWith(END_BOILERPLATE_2))
-			body = body
-					.substring(0, body.length() - END_BOILERPLATE_1.length());
+		String docNo = extract("I", text, true);
+		String title = extract("T", text, true);
+		String date = extract("B", text, true);
+		String places = extract("A", text, true);
+		String dateline = extract("N", text, true);
+		String content = extract("X", text, true);
+//		if (body.endsWith(END_BOILERPLATE_1)
+//				|| body.endsWith(END_BOILERPLATE_2))
+//			body = body
+//					.substring(0, body.length() - END_BOILERPLATE_1.length());
 		List<String> document = new LinkedList<String>();
+		document.add(docNo);
 		document.add(title);
-		document.add(body);
-		document.add(topics.replaceAll("\\<D\\>", " ").replaceAll("\\<\\/D\\>",
-				""));
 		document.add(date);
+		document.add(places);
 		document.add(dateline);
-		document.add(oldID);
-		document.add(newID);
+		document.add(content);
 		return document;
 	}
 
@@ -110,8 +101,8 @@ public class CACMParser {
 		 * IllegalArgumentException
 		 */
 
-		String startElt = "<" + elt + ">";
-		String endElt = "</" + elt + ">";
+		String startElt = "." + elt;
+		String endElt = "\n.";
 		int startEltIndex = text.indexOf(startElt);
 		if (startEltIndex < 0) {
 			if (allowEmpty)
