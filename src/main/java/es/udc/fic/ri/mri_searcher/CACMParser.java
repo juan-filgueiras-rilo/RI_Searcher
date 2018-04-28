@@ -91,12 +91,8 @@ public class CACMParser {
 
         String queryNo = extract("I ", text, true);
         String body = extract("W\n ", text, true);
-        String autor = extract("A\n", text, true);
-        String info = extract("N\n ", text, true);
         QueryType query = new QueryType(Integer.parseInt(queryNo));
         query.setBody(body);
-        query.setAuthor(autor);
-        query.setInfo(info);
         return query;
     }
 

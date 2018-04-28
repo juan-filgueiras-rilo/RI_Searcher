@@ -6,8 +6,6 @@ import java.util.List;
 public class QueryType {
     private int id;
     private String body;
-    private String author;
-    private String info;
     private List<Integer> relDocs;
 
     public QueryType(int id) {
@@ -29,22 +27,6 @@ public class QueryType {
 
     public void setBody(String body) {
         this.body = body;
-    }
-
-    public String getAuthor() {
-        return author;
-    }
-
-    public void setAuthor(String author) {
-        this.author = author;
-    }
-
-    public String getInfo() {
-        return info;
-    }
-
-    public void setInfo(String info) {
-        this.info = info;
     }
 
     public List<Integer> getRelDocs() {
