@@ -19,35 +19,29 @@ public class CACMParser {
 	public static List<List<String>> parseString(StringBuffer fileContent) {
 		/* First the contents are converted to a string */
 		String text = fileContent.toString();
-
 		/*
 		 * The method split of the String class splits the strings using the
-		 * delimiter which was passed as argument Therefor lines is an array of
+		 * delimiter which was passed as argument Therefore lines is an array of
 		 * strings, one string for each line
 		 */
 		String[] lines = text.split("\n");
-
-		/*
-		 * For each Reuters article the parser returns a list of strings where
-		 * each element of the list is a field (TITLE, BODY, TOPICS, DATELINE).
-		 * Each *.sgm file that is passed in fileContent can contain many
-		 * Reuters articles, so finally the parser returns a list of list of
-		 * strings, i.e, a list of reuters articles, that is what the object
-		 * documents contains
-		 */
-
 		List<List<String>> documents = new LinkedList<List<String>>();
 
-		/* The tag REUTERS identifies the beginning and end of each article */
+		/* The tag .I identifies the beginning and end of each article */
 
 		for (int i = 0; i < lines.length; ++i) {
 			if (!lines[i].startsWith(".I"))
 				continue;
 			StringBuilder sb = new StringBuilder();
+			sb.append(lines[i++]);
 			while (!lines[i].startsWith(".I")) {
+				if (i == lines.length-1)
+					break;
 				sb.append(lines[i++]);
 				sb.append("\n");
 			}
+			i--;
+			sb.append("<END>");
 			/*
 			 * Here the sb object of the StringBuilder class contains the
 			 * Reuters article which is converted to text and passed to the
@@ -104,10 +98,26 @@ public class CACMParser {
 
 		String docNo = extract("I", text, true);
 		String title = extract("T", text, true);
+		if (title.startsWith("\n")){
+			title = title.replaceFirst("\n", "");
+		}
 		String date = extract("B", text, true);
-		String places = extract("A", text, true);
+		if (date.startsWith("\n")){
+			date = date.replaceFirst("\n", "");
+		}
+		String names = extract("A", text, true);
+		if (names.startsWith("\n")){
+			names = names.replaceFirst("\n", "");
+		}
 		String dateline = extract("N", text, true);
+		if (dateline.startsWith("\n")){
+			dateline = dateline.replaceFirst("\n", "");
+		}
 		String content = extract("X", text, true);
+		if (content.startsWith("\n")){
+			content = content.replaceFirst("\n", "");
+		}
+//		content.replaceAll("\t", "|");
 //		if (body.endsWith(END_BOILERPLATE_1)
 //				|| body.endsWith(END_BOILERPLATE_2))
 //			body = body
@@ -116,7 +126,7 @@ public class CACMParser {
 		document.add(docNo);
 		document.add(title);
 		document.add(date);
-		document.add(places);
+		document.add(names);
 		document.add(dateline);
 		document.add(content);
 		return document;
@@ -135,7 +145,7 @@ public class CACMParser {
 		 */
 
 		String startElt = "." + elt;
-		String endElt = "\n.";
+		String endElt = ".";
 		int startEltIndex = text.indexOf(startElt);
 		if (startEltIndex < 0) {
 			if (allowEmpty)
@@ -145,9 +155,12 @@ public class CACMParser {
 		}
 		int start = startEltIndex + startElt.length();
 		int end = text.indexOf(endElt, start);
-		if (end < 0)
-			throw new IllegalArgumentException("no end, elt=" + elt + " text="
-					+ text);
+		if (end < 0) {
+			end = text.indexOf("<END>", start);
+			if(end < 0)
+				throw new IllegalArgumentException("no end, elt=" + elt + " text="
+						+ text);
+		}
 		return text.substring(start, end);
 	}
 

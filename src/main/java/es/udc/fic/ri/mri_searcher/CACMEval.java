@@ -192,37 +192,37 @@ public class CACMEval {
 				Field pathSgm = new StringField("path", file.toString(), Field.Store.YES);
 				doc.add(pathSgm);
 				
-				Field hostname = new StringField("hostname", System.getProperty("user.name"), Field.Store.NO);
+				Field hostname = new StringField("hostname", System.getProperty("user.name"), Field.Store.YES);
 				doc.add(hostname);
 				
-				Field thread = new StringField("thread", Thread.currentThread().getName(), Field.Store.NO);
+				Field thread = new StringField("thread", Thread.currentThread().getName(), Field.Store.YES);
 				doc.add(thread);
 				
-				Field topics = new TextField("topics", parsedDoc.get(2), Field.Store.YES);
-				doc.add(topics);
+				Field docid = new TextField("docid", parsedDoc.get(0), Field.Store.YES);
+				doc.add(docid);
 				
-				Field title = new Field("title", parsedDoc.get(0), t);
+				Field title = new Field("title", parsedDoc.get(1), t);
 				doc.add(title);
 				
-				Field dateLine = new StringField("dateline", parsedDoc.get(4), Field.Store.YES);
-				doc.add(dateLine);
+				Field date = new StringField("date", parsedDoc.get(2), Field.Store.YES);
+				doc.add(date);
 				
-				Field body = new Field("body", parsedDoc.get(1), t);
-				doc.add(body);
+				Field names = new Field("names", parsedDoc.get(3), t);
+				doc.add(names);
 				
-				Field oldID = new StringField("oldid", parsedDoc.get(5), Field.Store.YES);
+				Field dateline = new StringField("dateline", parsedDoc.get(4), Field.Store.YES);
 				//Field oldID = new LongPoint("oldid", Long.parseLong(parsedDoc.get(5)));
-				doc.add(oldID);
+				doc.add(dateline);
 				
-				Field newID = new StringField("newid", parsedDoc.get(6), Field.Store.YES);
+				Field content = new StringField("content", parsedDoc.get(5), Field.Store.YES);
 				//Field newID = new LongPoint("newid", Long.parseLong(parsedDoc.get(6)));
-				doc.add(newID);
+				doc.add(content);
 				//26-FEB-1987 15:01:01.79
-				SimpleDateFormat dateFormat = new SimpleDateFormat("d-MMMM-yyyy HH:mm:ss.SS", Locale.ENGLISH);
-				Date date = dateFormat.parse(parsedDoc.get(3));
-				String dateText = DateTools.dateToString(date, Resolution.SECOND);
-				Field dateField = new StringField("date", dateText, Field.Store.YES);
-				doc.add(dateField);
+//				SimpleDateFormat dateFormat = new SimpleDateFormat("d-MMMM-yyyy HH:mm:ss.SS", Locale.ENGLISH);
+//				Date date = dateFormat.parse(parsedDoc.get(3));
+//				String dateText = DateTools.dateToString(date, Resolution.SECOND);
+//				Field dateField = new StringField("date", dateText, Field.Store.YES);
+//				doc.add(dateField);
 				
 				if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
 					// New index, so we just add the document (no old document can be there):
@@ -239,7 +239,7 @@ public class CACMEval {
 			else
 				System.out.println("updating " + file);
 				
-		} catch (ParseException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
