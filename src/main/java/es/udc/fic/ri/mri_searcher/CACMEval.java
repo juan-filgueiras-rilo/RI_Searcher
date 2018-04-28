@@ -32,6 +32,10 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
+import org.apache.lucene.search.similarities.BM25Similarity;
+import org.apache.lucene.search.similarities.LMDirichletSimilarity;
+import org.apache.lucene.search.similarities.LMJelinekMercerSimilarity;
+import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
@@ -62,6 +66,7 @@ public class CACMEval {
 		//String docsPath = "D:\\RI\\cacm";
 		String docsPath = "D:\\UNI\\3º\\Recuperación de la Información\\2018-2\\docs\\cacm.all";
 		OpenMode modo = OpenMode.CREATE;
+        Similarity similarity = new BM25Similarity();
 		
 		for(int i=0;i<args.length;i++) {
 			switch(args[i]) {
@@ -69,42 +74,59 @@ public class CACMEval {
 			case("-index"):
 				setOpIfNone(IndexOperation.CREATE);
 				if (args.length-1 >= i+1 && isValidPath(args[i+1])) {
-					indexPath = args[i+1];
-					i++;
+					indexPath = args[++i];
 					break;
 				} else {
-					System.err.println("Wrong option -index.\n ");
+					System.err.println("Wrong option -index.\n");
 					System.exit(-1);
 				}
 			case("-coll"):
 				setOpIfNone(IndexOperation.CREATE);
 				if (args.length-1 >= i+1 && isValidPath(args[i+1])) {
-					docsPath = args[i+1];
-					i++;
+					docsPath = args[++i];
 					break;
 				} else {
-					System.err.println("Wrong option -coll.\n ");
+					System.err.println("Wrong option -coll.\n");
 					System.exit(-1);
 				}
 			case("-openmode"):	
 				setOpIfNone(IndexOperation.CREATE);
 				if(args.length-1 >= i+1) {
-					switch(args[i+1]) {
+					switch(args[++i]) {
 					case "create": modo = OpenMode.CREATE;
 						break;
 					case "append": modo = OpenMode.APPEND;
 						break;
 					case "create_or_append": modo = OpenMode.CREATE_OR_APPEND;
 						break;
-					default: System.err.println("Wrong option -openmode.\n ");
+					default: System.err.println("Wrong option -openmode.\n");
 						System.exit(-1);
 					}
-					i++;
 					break;
 				} else {
-					System.err.println("Missing arg for -openmode.\n ");
+					System.err.println("Missing arg for -openmode.\n");
 					System.exit(-1);
 				}
+            case("-indexingmodel"):
+                setOpIfNone(IndexOperation.CREATE);
+                if(args.length-1 >= i+2) {
+                    String model = args[++i];
+                    if (model.equals("jm")){
+                        float lambda = Float.parseFloat(args[++i]);
+                        similarity = new LMJelinekMercerSimilarity(lambda);
+                    } else if (model.equals("dir")){
+                        float mu = Float.parseFloat(args[++i]);
+                        similarity = new LMDirichletSimilarity(mu);
+                    } else {
+                        System.err.println("Invalid arg '" + model + "' for -indexingmodel.\n");
+                        System.exit(-1);
+                    }
+                    break;
+                }else{
+                    System.err.println("Missing arg for -indexingmodel.\n");
+                    System.exit(-1);
+                }
+
 			}
 		}
 		Date start = new Date();
@@ -123,6 +145,7 @@ public class CACMEval {
 				Directory dir = FSDirectory.open(Paths.get(indexPath));
 				Analyzer analyzer = new StandardAnalyzer();
 				IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
+				iwc.setSimilarity(similarity);
 				iwc.setOpenMode(modo);
 				iwc.setRAMBufferSizeMB(512.0);
 				
