@@ -13,6 +13,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -66,6 +67,9 @@ public class CACMEval {
 		//String docsPath = "D:\\RI\\cacm";
 		String docsPath = "D:\\UNI\\3º\\Recuperación de la Información\\2018-2\\docs\\cacm.all";
 		OpenMode modo = OpenMode.CREATE;
+		int cut = 0;
+		int top = 0;
+		List<Integer> queryList = new ArrayList<>();
         Similarity similarity = new BM25Similarity();
 		
 		for(int i=0;i<args.length;i++) {
@@ -75,6 +79,7 @@ public class CACMEval {
 				setOpIfNone(IndexOperation.CREATE);
 				if (args.length-1 >= i+1 && isValidPath(args[i+1])) {
 					indexPath = args[++i];
+                    System.out.println("Path donde se creará / actualizará el Índice: " + indexPath);
 					break;
 				} else {
 					System.err.println("Wrong option -index.\n");
@@ -84,6 +89,7 @@ public class CACMEval {
 				setOpIfNone(IndexOperation.CREATE);
 				if (args.length-1 >= i+1 && isValidPath(args[i+1])) {
 					docsPath = args[++i];
+                    System.out.println("Directorio de los documentos: " + docsPath);
 					break;
 				} else {
 					System.err.println("Wrong option -coll.\n");
@@ -92,14 +98,19 @@ public class CACMEval {
 			case("-openmode"):	
 				setOpIfNone(IndexOperation.CREATE);
 				if(args.length-1 >= i+1) {
+                    System.out.println("Modo de apertura del índice: " + args[i+1]);
 					switch(args[++i]) {
-					case "create": modo = OpenMode.CREATE;
+					case "create":
+					    modo = OpenMode.CREATE;
 						break;
-					case "append": modo = OpenMode.APPEND;
+					case "append":
+					    modo = OpenMode.APPEND;
 						break;
-					case "create_or_append": modo = OpenMode.CREATE_OR_APPEND;
+					case "create_or_append":
+					    modo = OpenMode.CREATE_OR_APPEND;
 						break;
-					default: System.err.println("Wrong option -openmode.\n");
+					default:
+					    System.err.println("Wrong option -openmode.\n");
 						System.exit(-1);
 					}
 					break;
@@ -114,9 +125,11 @@ public class CACMEval {
                     if (model.equals("jm")){
                         float lambda = Float.parseFloat(args[++i]);
                         similarity = new LMJelinekMercerSimilarity(lambda);
+                        System.out.println("Usando model de similitud: LMJelinekMercerSimilarity con lambda: " + lambda);
                     } else if (model.equals("dir")){
                         float mu = Float.parseFloat(args[++i]);
                         similarity = new LMDirichletSimilarity(mu);
+                        System.out.println("Usando model de similitud: LMDirichletSimilarity con mu: " + mu);
                     } else {
                         System.err.println("Invalid arg '" + model + "' for -indexingmodel.\n");
                         System.exit(-1);
@@ -126,7 +139,79 @@ public class CACMEval {
                     System.err.println("Missing arg for -indexingmodel.\n");
                     System.exit(-1);
                 }
-
+            case("-search"):
+                setOpIfNone(IndexOperation.PROCESS);
+                if(args.length-1 >= i+2) {
+                    String model = args[++i];
+                    if (model.equals("jm")){
+                        float lambda = Float.parseFloat(args[++i]);
+                        similarity = new LMJelinekMercerSimilarity(lambda);
+                        System.out.println("Usando model de similitud: LMJelinekMercerSimilarity con lambda: " + lambda);
+                    } else if (model.equals("dir")){
+                        float mu = Float.parseFloat(args[++i]);
+                        similarity = new LMDirichletSimilarity(mu);
+                        System.out.println("Usando model de similitud: LMDirichletSimilarity con mu: " + mu);
+                    } else {
+                        System.err.println("Invalid arg '" + model + "' for -search.\n");
+                        System.exit(-1);
+                    }
+                    break;
+                }else{
+                    System.err.println("Missing arg for -search.\n");
+                    System.exit(-1);
+                }
+            case("-indexin"):
+                setOpIfNone(IndexOperation.PROCESS);
+                if (args.length-1 >= i+1 && isValidPath(args[i+1])) {
+                    indexPath = args[++i];
+                    System.out.println("Path del Índice a utilizar: " + indexPath);
+                    break;
+                } else {
+                    System.err.println("Wrong option -indexin.\n");
+                    System.exit(-1);
+                }
+            case("-cut"):
+                setOpIfNone(IndexOperation.PROCESS);
+                if (args.length-1 >= i+1) {
+                    cut = Integer.parseInt(args[++i]);
+                    System.out.println("Usando " + cut + " documentos del ranking para el cómputo del MAP.");
+                    break;
+                } else {
+                    System.err.println("Wrong option -cut.\n");
+                    System.exit(-1);
+                }
+            case("-top"):
+                setOpIfNone(IndexOperation.PROCESS);
+                if (args.length-1 >= i+1) {
+                    top = Integer.parseInt(args[++i]);
+                    System.out.println("Mostrando los " + top + " primeros documentos del ranking...");
+                    break;
+                } else {
+                    System.err.println("Wrong option -top.\n");
+                    System.exit(-1);
+                }
+            case("-queries"):
+                setOpIfNone(IndexOperation.PROCESS);
+                if (args.length-1 >= i+1) {
+                    String arg = args[++i];
+                    String[] queries = arg.split("-");
+                    if (!arg.equals("all")){
+                        if (arg.length()>1){
+                            queryList.add(Integer.parseInt(queries[0]));
+                            queryList.add(Integer.parseInt(queries[1]));
+                            System.out.println("Using queries between " + arg);
+                        }else{
+                            queryList.add(Integer.parseInt(arg));
+                            System.out.println("Using querie with ID: " + arg);
+                        }
+                    } else {
+                        System.out.println("Using all queries.");
+                    }
+                    break;
+                } else {
+                    System.err.println("Wrong option -top.\n");
+                    System.exit(-1);
+                }
 			}
 		}
 		Date start = new Date();
