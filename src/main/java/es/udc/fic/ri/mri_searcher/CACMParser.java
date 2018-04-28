@@ -1,5 +1,6 @@
 package es.udc.fic.ri.mri_searcher;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -12,7 +13,7 @@ public class CACMParser {
 	public CACMParser(){}
 	
 	//boiler modificado
-	private static final String END_BOILERPLATE_1 = "Reuter\n&#3;";
+
 	private static final String END_BOILERPLATE_2 = "REUTER\n&#3;";
 
 	public static List<List<String>> parseString(StringBuffer fileContent) {
@@ -57,6 +58,38 @@ public class CACMParser {
 		}
 		return documents;
 	}
+
+    public static List<List<String>> parseQuerys(StringBuffer fileContent) {
+
+        String text = fileContent.toString();
+        String[] lines = text.split("\n");
+        List<List<String>> documents = new LinkedList<List<String>>();
+        for (int i = 0; i < lines.length; ++i) {
+            if (!lines[i].startsWith(".I"))
+                continue;
+            StringBuilder sb = new StringBuilder();
+            sb.append(lines[i++]);
+            sb.append("\n");
+            while (!lines[i].startsWith(".I")) {
+                sb.append(lines[i++]);
+                sb.append("\n");
+            }
+            documents.add(handleQuery(sb.toString()));
+        }
+        return documents;
+    }
+
+    public static List<String> handleQuery(String text) {
+
+        String queryNo = extract("I", text, true);
+        String body = extract("W", text, true);
+        String info = extract("N", text, true);
+        List<String> document = new ArrayList<String>();
+        document.add(queryNo);
+        document.add(body);
+        document.add(info);
+        return document;
+    }
 
 	public static List<String> handleDocument(String text) {
 
