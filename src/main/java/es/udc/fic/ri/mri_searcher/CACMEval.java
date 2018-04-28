@@ -54,11 +54,13 @@ public class CACMEval {
 		return false;
 	}
 	
-	public static void main(String[] args) {		
-		String indexPath = "D:\\RI\\CACMindex";
-		//String indexPath = "D:\\UNI\\3º\\Recuperación de la Información\\indexIn";
-		String docsPath = "D:\\RI\\cacm";
-		//String docsPath = "D:\\UNI\\3º\\Recuperación de la Información\\Práctica 2\\reuters21578";
+	public static void main(String[] args) {
+		String querysPath = "D:\\UNI\\3º\\Recuperación de la Información\\2018-2\\docs\\query.text";
+		String relsPath = "D:\\UNI\\3º\\Recuperación de la Información\\2018-2\\docs\\qrels.text";
+		//String indexPath = "D:\\RI\\CACMindex";
+		String indexPath = "D:\\UNI\\3º\\Recuperación de la Información\\2018-2\\index";
+		//String docsPath = "D:\\RI\\cacm";
+		String docsPath = "D:\\UNI\\3º\\Recuperación de la Información\\2018-2\\docs\\cacm.all";
 		OpenMode modo = OpenMode.CREATE;
 		
 		for(int i=0;i<args.length;i++) {
