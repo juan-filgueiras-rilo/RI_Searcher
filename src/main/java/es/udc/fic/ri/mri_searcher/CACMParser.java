@@ -124,10 +124,7 @@ public class CACMParser {
 		if (dateline.startsWith("\n")){
 			dateline = dateline.replaceFirst("\n", "");
 		}
-		String content = extract("X", text, true);
-		if (content.startsWith("\n")){
-			content = content.replaceFirst("\n", "");
-		}
+
 //		content.replaceAll("\t", "|");
 //		if (body.endsWith(END_BOILERPLATE_1)
 //				|| body.endsWith(END_BOILERPLATE_2))
@@ -139,7 +136,7 @@ public class CACMParser {
 		document.add(date);
 		document.add(names);
 		document.add(dateline);
-		document.add(content);
+//		document.add(content);
 		return document;
 	}
 
