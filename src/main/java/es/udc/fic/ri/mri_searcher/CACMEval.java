@@ -261,7 +261,6 @@ public class CACMEval {
 				Directory dir = FSDirectory.open(Paths.get(indexPath));
 				DirectoryReader indexReader = DirectoryReader.open(dir);
 				IndexSearcher indexSearcher = new IndexSearcher(indexReader);
-				
 				//Seteamos la similaridad con la suavización para la búsqueda
 				indexSearcher.setSimilarity(similarity);
 				
@@ -273,15 +272,16 @@ public class CACMEval {
 				QueryManagement queryManagement = new QueryManagement(queryPath, qrelsPath);
 				
 				//Preparamos las queries pedidas y los campos
+				int relsCount = 0;
 				String[] fields = {"T","W"};
-				Occur[] occurrences = {BooleanClause.Occur.SHOULD, BooleanClause.Occur.SHOULD};
 				
 				//Por cada query, mostramos query, documentos con info, y métricas
 				for (int i=queryList.get(0); i<=queryList.get(queryList.size()-1); i++) {
 					
 					QueryType query = queryManagement.getQuery(i);
 					System.out.println("\nQuery: " + query.getBody());
-					Query q = MultiFieldQueryParser.parse(query.getBody(), fields, occurrences, new StandardAnalyzer());
+					MultiFieldQueryParser parser = new MultiFieldQueryParser(fields, new StandardAnalyzer());
+					Query q = parser.createPhraseQuery("", query.getBody());//.parse(query.getBody().replaceAll("/", " ").replaceAll("\n", " ").replaceAll("\\,", " "));
 					TopDocs topDocs = indexSearcher.search(q, top);
 					ScoreDoc[] scoreDocs = topDocs.scoreDocs;
 					System.out.println("Number of Top Docs: " + topDocs.scoreDocs.length);
@@ -293,11 +293,16 @@ public class CACMEval {
 						for (IndexableField docField : docFields) {
 							System.out.println(docField.name() + ": " +docField.stringValue());
 						}
-						query.isRelevant(scoredDoc.doc);
+						query.isRelevant(Integer.parseInt(doc.getField("I").stringValue().trim()));
 						System.out.println("\nIs relevant: " + query.isRelevant(scoredDoc.doc) + "\n");
 						System.out.println("---------------------------------------------------------");
+						if (query.isRelevant(scoredDoc.doc)) {
+							relsCount++;
+						}
 					}
-				}				
+					
+				}	
+				System.out.println(relsCount);
 			}
 			if (end == null) {
 				end = new Date();
@@ -379,22 +384,22 @@ public class CACMEval {
 				Field thread = new StringField("thread", Thread.currentThread().getName(), Field.Store.YES);
 				doc.add(thread);
 				// docid?
-				Field i = new TextField("I", parsedDoc.get(0), Field.Store.YES);
+				Field i = new TextField("I", parsedDoc.get(0).trim(), Field.Store.YES);
 				doc.add(i);
 				// title?
-				Field t = new Field("T", parsedDoc.get(1), type);
+				Field t = new Field("T", parsedDoc.get(1).trim(), type);
 				doc.add(t);
 				// date
-				Field b = new StringField("B", parsedDoc.get(2), Field.Store.YES);
+				Field b = new StringField("B", parsedDoc.get(2).trim(), Field.Store.YES);
 				doc.add(b);
 				// names
-				Field a = new Field("A", parsedDoc.get(3), type);
+				Field a = new Field("A", parsedDoc.get(3).trim(), type);
 				doc.add(a);
 				// dateline
-				Field n = new StringField("N", parsedDoc.get(4), Field.Store.YES);
+				Field n = new StringField("N", parsedDoc.get(4).trim(), Field.Store.YES);
 				// Field oldID = new LongPoint("oldid", Long.parseLong(parsedDoc.get(5)));
 				doc.add(n);
-				Field w = new Field("W", parsedDoc.get(5), type);
+				Field w = new Field("W", parsedDoc.get(5).trim(), type);
 				doc.add(w);
 				// Field content = new StringField("content", parsedDoc.get(5),
 				// Field.Store.YES);
