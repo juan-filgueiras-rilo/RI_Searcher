@@ -107,35 +107,39 @@ public class CACMParser {
 		/* Each topic inside TOPICS is identified with a tag D */
 		/* If the BODY ends with boiler plate text, this text is removed */
 
-		String docNo = extract("I", text, true);
-		String title = extract("T", text, true);
-		if (title.startsWith("\n")){
-			title = title.replaceFirst("\n", "");
+		String i = extract("I", text, true);
+		String t = extract("T", text, true);
+		if (t.startsWith("\n")){
+			t = t.replaceFirst("\n", "");
 		}
-		String date = extract("B", text, true);
-		if (date.startsWith("\n")){
-			date = date.replaceFirst("\n", "");
+		String b = extract("B", text, true);
+		if (b.startsWith("\n")){
+			b = b.replaceFirst("\n", "");
 		}
-		String names = extract("A", text, true);
-		if (names.startsWith("\n")){
-			names = names.replaceFirst("\n", "");
+		String a = extract("A", text, true);
+		if (a.startsWith("\n")){
+			a = a.replaceFirst("\n", "");
 		}
-		String dateline = extract("N", text, true);
-		if (dateline.startsWith("\n")){
-			dateline = dateline.replaceFirst("\n", "");
+		String n = extract("N", text, true);
+		if (n.startsWith("\n")){
+			n = n.replaceFirst("\n", "");
 		}
-
+		String w = extract("W", text, true);
+		if (w.startsWith("\n")){
+			w = w.replaceFirst("\n", "");
+		}
 //		content.replaceAll("\t", "|");
 //		if (body.endsWith(END_BOILERPLATE_1)
 //				|| body.endsWith(END_BOILERPLATE_2))
 //			body = body
 //					.substring(0, body.length() - END_BOILERPLATE_1.length());
 		List<String> document = new LinkedList<String>();
-		document.add(docNo);
-		document.add(title);
-		document.add(date);
-		document.add(names);
-		document.add(dateline);
+		document.add(i);
+		document.add(t);
+		document.add(b);
+		document.add(a);
+		document.add(n);
+		document.add(w);
 //		document.add(content);
 		return document;
 	}
