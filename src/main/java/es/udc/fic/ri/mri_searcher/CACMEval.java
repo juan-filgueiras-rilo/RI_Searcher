@@ -311,9 +311,6 @@ public class CACMEval {
 		} catch (IOException e) {
 			System.err.println("Caught a " + e.getClass() + " with message: " + e.getMessage());
 			e.printStackTrace();
-		} catch (org.apache.lucene.queryparser.classic.ParseException e) {
-			System.err.println("Caught a " + e.getClass() + " with message: " + e.getMessage());
-			e.printStackTrace();
 		}
 	}
 
