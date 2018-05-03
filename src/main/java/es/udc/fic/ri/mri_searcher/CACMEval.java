@@ -270,23 +270,30 @@ public class CACMEval {
 				String queryPath = propsFile.getProperty("queryPath");
 				String qrelsPath = propsFile.getProperty("qrelsPath");
 				QueryManagement queryManagement = new QueryManagement(queryPath, qrelsPath);
+				Analyzer analyzer = new StandardAnalyzer();
 				
 				//Preparamos las queries pedidas y los campos
-				int relsCount = 0;
 				String[] fields = {"T","W"};
 				
 				//Por cada query, mostramos query, documentos con info, y métricas
 				for (int i=queryList.get(0); i<=queryList.get(queryList.size()-1); i++) {
 					
+					int rels10Count = 0;
+					int rels20Count = 0;
 					QueryType query = queryManagement.getQuery(i);
 					System.out.println("\nQuery: " + query.getBody());
-					MultiFieldQueryParser parser = new MultiFieldQueryParser(fields, new StandardAnalyzer());
-					Query q = parser.createPhraseQuery("", query.getBody());//.parse(query.getBody().replaceAll("/", " ").replaceAll("\n", " ").replaceAll("\\,", " "));
+					String escapedQuery = MultiFieldQueryParser.escape(query.getBody());
+					String[] queries = {escapedQuery, escapedQuery};
+					
+					Query q =  MultiFieldQueryParser.parse(queries, fields, analyzer);
+					
 					TopDocs topDocs = indexSearcher.search(q, top);
 					ScoreDoc[] scoreDocs = topDocs.scoreDocs;
 					System.out.println("Number of Top Docs: " + topDocs.scoreDocs.length);
-					for (ScoreDoc scoredDoc : scoreDocs) {
+					
+					for (int j = 0; j < scoreDocs.length; j++) {
 						
+						ScoreDoc scoredDoc = scoreDocs[j];
 						System.out.println("\nDoc nº: " + scoredDoc.doc + ", score: " + scoredDoc.score);
 						Document doc = indexReader.document(scoredDoc.doc);
 						List<IndexableField> docFields = doc.getFields();
@@ -296,13 +303,27 @@ public class CACMEval {
 						query.isRelevant(Integer.parseInt(doc.getField("I").stringValue().trim()));
 						System.out.println("\nIs relevant: " + query.isRelevant(scoredDoc.doc) + "\n");
 						System.out.println("---------------------------------------------------------");
-						if (query.isRelevant(scoredDoc.doc)) {
-							relsCount++;
+						
+						if(j < 20) {
+							if (query.isRelevant(scoredDoc.doc)) {
+								if (j < 10) {
+									rels10Count++;
+								}
+								rels20Count++;
+							}
 						}
 					}
-					
+					//Metrica P@N para N = 10 y 20.
+					System.out.println("P@10: " + (float)rels10Count/10 );
+					System.out.println("P@20: " + (float)rels20Count/20 );
+					System.out.println("---------------------------------------------------------");
+					//Metrica Recall@N para N = 10 y 20.
+					System.out.println("Recall@10: " + (float)rels10Count/query.getRelDocs().size());
+					System.out.println("Recall@20: " + (float)rels20Count/query.getRelDocs().size());
+					System.out.println("---------------------------------------------------------");
+					//Métrica para AP TODO
 				}	
-				System.out.println(relsCount);
+				//TODO las medias para todas las queries
 			}
 			if (end == null) {
 				end = new Date();
@@ -310,6 +331,9 @@ public class CACMEval {
 			System.out.println(end.getTime() / 1000 - start.getTime() / 1000 + " total seconds");
 		} catch (IOException e) {
 			System.err.println("Caught a " + e.getClass() + " with message: " + e.getMessage());
+			e.printStackTrace();
+		} catch (org.apache.lucene.queryparser.classic.ParseException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
