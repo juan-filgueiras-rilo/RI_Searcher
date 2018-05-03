@@ -45,7 +45,7 @@ import org.apache.lucene.store.FSDirectory;
 public class CACMEval {
 
 	private enum IndexOperation {
-		NONE, CREATE, SEARCH, TRAINING_TEST;
+		NONE, CREATE, SEARCH, TRAINING_TEST, PRF;
 	}
 
 	private static IndexOperation OP = IndexOperation.NONE;
@@ -62,8 +62,6 @@ public class CACMEval {
 	}
 
 	public static void main(String[] args) {
-		String querysPath = "D:\\UNI\\3º\\Recuperación de la Información\\2018-2\\docs\\query.text";
-		String relsPath = "D:\\UNI\\3º\\Recuperación de la Información\\2018-2\\docs\\qrels.text";
 		// String indexPath = "D:\\RI\\CACMindex";
 		String indexPath = "D:\\UNI\\3º\\Recuperación de la Información\\2018-2\\index";
 		// String docsPath = "D:\\RI\\cacm";
@@ -71,6 +69,8 @@ public class CACMEval {
 		OpenMode modo = OpenMode.CREATE;
 		int cut = 0;
 		int top = 0;
+		int n_rel_docs = 0;
+		int n_terms_to_expand = 0;
 		List<Integer> queryList = new ArrayList<>();
 		Similarity similarity = new BM25Similarity();
 
@@ -219,8 +219,61 @@ public class CACMEval {
 				}
 			case ("-evaljm"):
 				setOpIfNone(IndexOperation.TRAINING_TEST);
-			
+				break;
+			case("-prf"):
+				setOpIfNone(IndexOperation.PRF);
+				if (args.length - 1 >= i + 2) {
+					String model = args[++i];
+					if (model.equals("jm")) {
+						float lambda = Float.parseFloat(args[++i]);
+						similarity = new LMJelinekMercerSimilarity(lambda);
+						System.out
+								.println("Usando model de similitud: LMJelinekMercerSimilarity con lambda: " + lambda);
+					} else if (model.equals("dir")) {
+						float mu = Float.parseFloat(args[++i]);
+						similarity = new LMDirichletSimilarity(mu);
+						System.out.println("Usando model de similitud: LMDirichletSimilarity con mu: " + mu);
+					} else {
+						System.err.println("Invalid arg '" + model + "' for -prf.\n");
+						System.exit(-1);
+					}
+					break;
+				} else {
+					System.err.println("Missing arg for -prf.\n");
+					System.exit(-1);
+				}
+            case("-prs"):
+                setOpIfNone(IndexOperation.PRF);
+                if (args.length - 1 >= i + 1) {
+                    n_rel_docs = Integer.parseInt(args[++i]);
+                    System.out.println("El Pseudo Relevance Set se construirá con los primeros " + n_rel_docs + " documentos.");
+                    break;
+                } else {
+                    System.err.println("Missing arg for -prs.\n");
+                    System.exit(-1);
+                }
+            case("-exp"):
+                setOpIfNone(IndexOperation.PRF);
+                if (args.length - 1 >= i + 1) {
+                    n_terms_to_expand = Integer.parseInt(args[++i]);
+                    System.out.println("Expande la query original con los mejores " + n_rel_docs + " términos.");
+                    break;
+                } else {
+                    System.err.println("Missing arg for -exp.\n");
+                    System.exit(-1);
+                }
+            case("-query"):
+                setOpIfNone(IndexOperation.PRF);
+                if (args.length - 1 >= i + 1) {
+                    queryList.add(Integer.parseInt(args[++i]));
+                    System.out.println("Seleccionada query con ID: " + args[i]);
+                    break;
+                } else {
+                    System.err.println("Missing arg for -query.\n");
+                    System.exit(-1);
+                }
 			}
+
 		}
 		Date start = new Date();
 		Date end = null;
@@ -252,7 +305,31 @@ public class CACMEval {
 				doSearch(indexPath, similarity, queryList, top, cut);
 			} else if (CACMEval.OP.equals(IndexOperation.TRAINING_TEST)) {
 				
-			}
+			} else if (CACMEval.OP.equals(IndexOperation.PRF)) {
+                if (queryList.size() == 1){
+                    Properties propsFile = new Properties();
+                    propsFile.load(new InputStreamReader(Files.newInputStream(Paths.get(CACMEval.PROPERTIES_PATH))));
+                    String queryPath = propsFile.getProperty("queryPath");
+                    String qrelsPath = propsFile.getProperty("qrelsPath");
+                    QueryManagement queryManagement = new QueryManagement(queryPath, qrelsPath);
+                    List<String> terms_to_expand_query = new ArrayList<>();
+                    String terms_expand_query = "";
+                    int new_id = 0;
+                    doSearch(indexPath,similarity,queryList,top,cut);
+                    /*Extraer mejores términos para expandir la query y meterlos en terms_to_expand_query*/
+                    for (String term:terms_to_expand_query){
+                        terms_expand_query += " " + term;
+                    }
+                    new_id = queryManagement.expandQuery(queryList.get(0),terms_expand_query);
+                    queryList.clear();
+                    queryList.add(new_id);
+                    doSearch(indexPath,similarity,queryList,top,cut);
+                    /*Extraer resultados*/
+                    /*Comparar resultados*/
+                }else{
+                    System.out.println("Falta argumento -query");
+                }
+            }
 			if (end == null) {
 				end = new Date();
 			}
