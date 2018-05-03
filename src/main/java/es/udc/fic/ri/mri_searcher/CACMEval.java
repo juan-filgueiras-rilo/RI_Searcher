@@ -324,27 +324,30 @@ public class CACMEval {
 							avgPrecission += (float)relsCount/(j+1);;
 						}
 					}
-					//Metrica P@N para N = 10 y 20.
-					System.out.println("P@10: " + (float)rels10Count/10 );
-					meanPAt10 += (float)rels10Count/10;
-					System.out.println("P@20: " + (float)rels20Count/20 );
-					meanPAt20 += (float)rels20Count/20;
-					System.out.println("---------------------------------------------------------");
-					//Metrica Recall@N para N = 10 y 20.
-					System.out.println("Recall@10: " + (float)rels10Count/query.getRelDocs().size());
-					meanRecallAt10 += (float)rels10Count/query.getRelDocs().size();
-					System.out.println("Recall@20: " + (float)rels20Count/query.getRelDocs().size());
-					meanRecallAt20 += (float)rels20Count/query.getRelDocs().size();
-					System.out.println("---------------------------------------------------------");
-					//Métrica para AP TODO
-					System.out.println("AP: " + avgPrecission/relsCount);
-					meanAveragePrecission += avgPrecission/relsCount;
-					System.out.println("---------------------------------------------------------\n");
+					int relSize = query.getRelDocs().size();
+					if (relSize != 0 && relsCount != 0) {
+						//Metrica P@N para N = 10 y 20.
+						System.out.println("P@10: " + (float)rels10Count/10);
+						meanPAt10 += (float)rels10Count/10;
+						System.out.println("P@20: " + (float)rels20Count/20);
+						meanPAt20 += (float)rels20Count/20;
+						System.out.println("---------------------------------------------------------");
+						//Metrica Recall@N para N = 10 y 20.
+						meanRecallAt10 += (float)rels10Count/relSize;
+						meanRecallAt20 += (float)rels20Count/relSize;
+						System.out.println("Recall@10: " + (float)rels10Count/relSize);
+						System.out.println("Recall@20: " + (float)rels20Count/relSize);
+						System.out.println("---------------------------------------------------------");
+						//Métrica para AP TODO
+						System.out.println("AP: " + avgPrecission/relsCount);
+						meanAveragePrecission += avgPrecission/relsCount;
+						System.out.println("---------------------------------------------------------\n");
+					}
 					System.out.println("*********************************************************");
 				}
 				//Medias para las métricas para todas las queries
 				int queryNo = i - queryList.get(0);
-				System.out.println("Mean P@10 for '" + queryNo + "' queries: " + meanPAt10/queryNo );
+				System.out.println("Mean P@10 for '" + queryNo + "' queries: " + meanPAt10/queryNo);
 				System.out.println("Mean P@20 for '" + queryNo + "' queries: " + meanPAt20/queryNo);
 				System.out.println("Mean Recall@10 for '" + queryNo + "' queries: " + meanRecallAt10/queryNo);
 				System.out.println("Mean Recall@20 for '" + queryNo + "' queries: " + meanRecallAt20/queryNo);
