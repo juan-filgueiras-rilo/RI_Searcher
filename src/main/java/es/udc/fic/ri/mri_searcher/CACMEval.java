@@ -11,35 +11,26 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.Properties;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
-import org.apache.lucene.document.DateTools.Resolution;
-import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.Term;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
-import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.BooleanClause;
-import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -54,7 +45,7 @@ import org.apache.lucene.store.FSDirectory;
 public class CACMEval {
 
 	private enum IndexOperation {
-		NONE, CREATE, SEARCH;
+		NONE, CREATE, SEARCH, TRAINING_TEST;
 	}
 
 	private static IndexOperation OP = IndexOperation.NONE;
@@ -174,7 +165,6 @@ public class CACMEval {
 					System.exit(-1);
 				}
 			case ("-indexin"):
-				setOpIfNone(IndexOperation.SEARCH);
 				if (args.length - 1 >= i + 1 && isValidPath(args[i + 1])) {
 					indexPath = args[++i];
 					System.out.println("Path del Índice a utilizar: " + indexPath);
@@ -227,6 +217,9 @@ public class CACMEval {
 					System.err.println("Wrong option -top.\n");
 					System.exit(-1);
 				}
+			case ("-evaljm"):
+				setOpIfNone(IndexOperation.TRAINING_TEST);
+			
 			}
 		}
 		Date start = new Date();
@@ -256,102 +249,9 @@ public class CACMEval {
 				indexDocs(indexWriter, docDir);
 				indexWriter.close();
 			} else if (CACMEval.OP.equals(IndexOperation.SEARCH)) {
+				doSearch(indexPath, similarity, queryList, top, cut);
+			} else if (CACMEval.OP.equals(IndexOperation.TRAINING_TEST)) {
 				
-				//Usamos indexpath obtenido en indexin
-				Directory dir = FSDirectory.open(Paths.get(indexPath));
-				DirectoryReader indexReader = DirectoryReader.open(dir);
-				IndexSearcher indexSearcher = new IndexSearcher(indexReader);
-				//Seteamos la similaridad con la suavización para la búsqueda
-				indexSearcher.setSimilarity(similarity);
-				
-				//Creamos la lista para el Query Management
-				Properties propsFile = new Properties();
-				propsFile.load(new InputStreamReader(Files.newInputStream(Paths.get(CACMEval.PROPERTIES_PATH))));
-				String queryPath = propsFile.getProperty("queryPath");
-				String qrelsPath = propsFile.getProperty("qrelsPath");
-				QueryManagement queryManagement = new QueryManagement(queryPath, qrelsPath);
-				Analyzer analyzer = new StandardAnalyzer();
-				
-				//Preparamos las queries pedidas y los campos
-				String[] fields = {"T","W"};
-				
-				//Creamos variables para las métricas promediadas.
-				float meanPAt10 = 0;
-				float meanPAt20 = 0;
-				float meanRecallAt10 = 0;
-				float meanRecallAt20 = 0;
-				float meanAveragePrecission = 0;
-				int i;
-				//Por cada query, mostramos query, documentos con info, y métricas
-				for (i=queryList.get(0); i<=queryList.get(queryList.size()-1); i++) {
-					
-					int rels10Count = 0;
-					int rels20Count = 0;
-					int relsCount = 0;
-					float avgPrecission = 0;
-					QueryType query = queryManagement.getQuery(i);
-					System.out.println("\nQuery: " + query.getBody());
-					String escapedQuery = MultiFieldQueryParser.escape(query.getBody());
-					String[] queries = {escapedQuery, escapedQuery};
-					
-					Query q =  MultiFieldQueryParser.parse(queries, fields, analyzer);
-					
-					TopDocs topDocs = indexSearcher.search(q, top);
-					ScoreDoc[] scoreDocs = topDocs.scoreDocs;
-					System.out.println("Number of Top Docs: " + topDocs.scoreDocs.length);
-					
-					for (int j = 0; j < scoreDocs.length; j++) {
-						
-						ScoreDoc scoredDoc = scoreDocs[j];
-						System.out.println("\nDoc nº: " + scoredDoc.doc + ", score: " + scoredDoc.score);
-						Document doc = indexReader.document(scoredDoc.doc);
-						List<IndexableField> docFields = doc.getFields();
-						for (IndexableField docField : docFields) {
-							System.out.println(docField.name() + ": " +docField.stringValue());
-						}
-						query.isRelevant(Integer.parseInt(doc.getField("I").stringValue().trim()));
-						System.out.println("\nIs relevant: " + query.isRelevant(scoredDoc.doc) + "\n");
-						System.out.println("---------------------------------------------------------");
-						
-						if (query.isRelevant(scoredDoc.doc)) {
-							if(j < 20) {
-								if (j < 10) {
-									rels10Count++;
-								}
-								rels20Count++;
-							}
-							relsCount++;
-							avgPrecission += (float)relsCount/(j+1);;
-						}
-					}
-					int relSize = query.getRelDocs().size();
-					if (relSize != 0 && relsCount != 0) {
-						//Metrica P@N para N = 10 y 20.
-						System.out.println("P@10: " + (float)rels10Count/10);
-						meanPAt10 += (float)rels10Count/10;
-						System.out.println("P@20: " + (float)rels20Count/20);
-						meanPAt20 += (float)rels20Count/20;
-						System.out.println("---------------------------------------------------------");
-						//Metrica Recall@N para N = 10 y 20.
-						meanRecallAt10 += (float)rels10Count/relSize;
-						meanRecallAt20 += (float)rels20Count/relSize;
-						System.out.println("Recall@10: " + (float)rels10Count/relSize);
-						System.out.println("Recall@20: " + (float)rels20Count/relSize);
-						System.out.println("---------------------------------------------------------");
-						//Métrica para AP TODO
-						System.out.println("AP: " + avgPrecission/relsCount);
-						meanAveragePrecission += avgPrecission/relsCount;
-						System.out.println("---------------------------------------------------------\n");
-					}
-					System.out.println("*********************************************************");
-				}
-				//Medias para las métricas para todas las queries
-				int queryNo = i - queryList.get(0);
-				System.out.println("Mean P@10 for '" + queryNo + "' queries: " + meanPAt10/queryNo);
-				System.out.println("Mean P@20 for '" + queryNo + "' queries: " + meanPAt20/queryNo);
-				System.out.println("Mean Recall@10 for '" + queryNo + "' queries: " + meanRecallAt10/queryNo);
-				System.out.println("Mean Recall@20 for '" + queryNo + "' queries: " + meanRecallAt20/queryNo);
-				System.out.println("MAP for '" + queryNo + "' queries: " + meanAveragePrecission/queryNo);
 			}
 			if (end == null) {
 				end = new Date();
@@ -363,9 +263,106 @@ public class CACMEval {
 		}
 	}
 
-	static void doSearch() {
+	static void doSearch(String indexPath, Similarity similarity, List<Integer> queryList, int top, int cut) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
 		
+		//Usamos indexpath obtenido en indexin
+		Directory dir = FSDirectory.open(Paths.get(indexPath));
+		DirectoryReader indexReader = DirectoryReader.open(dir);
+		IndexSearcher indexSearcher = new IndexSearcher(indexReader);
+		//Seteamos la similaridad con la suavización para la búsqueda
+		indexSearcher.setSimilarity(similarity);
+		
+		//Creamos la lista para el Query Management
+		Properties propsFile = new Properties();
+		propsFile.load(new InputStreamReader(Files.newInputStream(Paths.get(CACMEval.PROPERTIES_PATH))));
+		String queryPath = propsFile.getProperty("queryPath");
+		String qrelsPath = propsFile.getProperty("qrelsPath");
+		QueryManagement queryManagement = new QueryManagement(queryPath, qrelsPath);
+		Analyzer analyzer = new StandardAnalyzer();
+		
+		//Preparamos las queries pedidas y los campos
+		String[] fields = {"T","W"};
+		
+		//Creamos variables para las métricas promediadas.
+		float meanPAt10 = 0;
+		float meanPAt20 = 0;
+		float meanRecallAt10 = 0;
+		float meanRecallAt20 = 0;
+		float meanAveragePrecission = 0;
+		int i;
+		//Por cada query, mostramos query, documentos con info, y métricas
+		for (i=queryList.get(0); i<=queryList.get(queryList.size()-1); i++) {
+			
+			int rels10Count = 0;
+			int rels20Count = 0;
+			int relsCount = 0;
+			float avgPrecission = 0;
+			QueryType query = queryManagement.getQuery(i);
+			System.out.println("\nQuery: " + query.getBody());
+			String escapedQuery = MultiFieldQueryParser.escape(query.getBody());
+			String[] queries = {escapedQuery, escapedQuery};
+			
+			Query q =  MultiFieldQueryParser.parse(queries, fields, analyzer);
+			
+			TopDocs topDocs = indexSearcher.search(q, top);
+			ScoreDoc[] scoreDocs = topDocs.scoreDocs;
+			System.out.println("Number of Top Docs: " + topDocs.scoreDocs.length);
+			
+			for (int j = 0; j < scoreDocs.length; j++) {
+				
+				ScoreDoc scoredDoc = scoreDocs[j];
+				System.out.println("\nDoc nº: " + scoredDoc.doc + ", score: " + scoredDoc.score);
+				Document doc = indexReader.document(scoredDoc.doc);
+				List<IndexableField> docFields = doc.getFields();
+				for (IndexableField docField : docFields) {
+					System.out.println(docField.name() + ": " +docField.stringValue());
+				}
+				query.isRelevant(Integer.parseInt(doc.getField("I").stringValue().trim()));
+				System.out.println("\nIs relevant: " + query.isRelevant(scoredDoc.doc) + "\n");
+				System.out.println("---------------------------------------------------------");
+				
+				if (query.isRelevant(scoredDoc.doc)) {
+					if(j < 20) {
+						if (j < 10) {
+							rels10Count++;
+						}
+						rels20Count++;
+					}
+					relsCount++;
+					avgPrecission += (float)relsCount/(j+1);;
+				}
+			}
+			int relSize = query.getRelDocs().size();
+			if (relSize != 0 && relsCount != 0) {
+				//Metrica P@N para N = 10 y 20.
+				System.out.println("P@10: " + (float)rels10Count/10);
+				meanPAt10 += (float)rels10Count/10;
+				System.out.println("P@20: " + (float)rels20Count/20);
+				meanPAt20 += (float)rels20Count/20;
+				System.out.println("---------------------------------------------------------");
+				//Metrica Recall@N para N = 10 y 20.
+				meanRecallAt10 += (float)rels10Count/relSize;
+				meanRecallAt20 += (float)rels20Count/relSize;
+				System.out.println("Recall@10: " + (float)rels10Count/relSize);
+				System.out.println("Recall@20: " + (float)rels20Count/relSize);
+				System.out.println("---------------------------------------------------------");
+				//Métrica para AP TODO
+				System.out.println("AP: " + avgPrecission/relsCount);
+				if (cut <= avgPrecission/relsCount)
+					meanAveragePrecission += avgPrecission/relsCount;
+				System.out.println("---------------------------------------------------------\n");
+			}
+			System.out.println("*********************************************************");
+		}
+		//Medias para las métricas para todas las queries
+		int queryNo = i - queryList.get(0);
+		System.out.println("Mean P@10 for '" + queryNo + "' queries: " + meanPAt10/queryNo);
+		System.out.println("Mean P@20 for '" + queryNo + "' queries: " + meanPAt20/queryNo);
+		System.out.println("Mean Recall@10 for '" + queryNo + "' queries: " + meanRecallAt10/queryNo);
+		System.out.println("Mean Recall@20 for '" + queryNo + "' queries: " + meanRecallAt20/queryNo);
+		System.out.println("MAP for '" + queryNo + "' queries: " + meanAveragePrecission/queryNo);
 	}
+
 	/**
 	 * Indexes the given file using the given writer, or if a directory is given,
 	 * recurses over files and directories found under the given directory.
