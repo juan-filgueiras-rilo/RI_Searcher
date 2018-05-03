@@ -72,6 +72,8 @@ public class CACMEval {
 		int cut = 0;
 		int top = 0;
 		List<Integer> queryList = new ArrayList<>();
+		List<Integer> trainingQueryList = new ArrayList<>();
+		List<Integer> testQueryList = new ArrayList<>();
 		Similarity similarity = new BM25Similarity();
 
 		for (int i = 0; i < args.length; i++) {
@@ -128,11 +130,11 @@ public class CACMEval {
 						float lambda = Float.parseFloat(args[++i]);
 						similarity = new LMJelinekMercerSimilarity(lambda);
 						System.out
-								.println("Usando model de similitud: LMJelinekMercerSimilarity con lambda: " + lambda);
+								.println("Usando model de similaridad: LMJelinekMercerSimilarity con lambda: " + lambda);
 					} else if (model.equals("dir")) {
 						float mu = Float.parseFloat(args[++i]);
 						similarity = new LMDirichletSimilarity(mu);
-						System.out.println("Usando model de similitud: LMDirichletSimilarity con mu: " + mu);
+						System.out.println("Usando model de similaridad: LMDirichletSimilarity con mu: " + mu);
 					} else {
 						System.err.println("Invalid arg '" + model + "' for -indexingmodel.\n");
 						System.exit(-1);
@@ -150,11 +152,11 @@ public class CACMEval {
 						float lambda = Float.parseFloat(args[++i]);
 						similarity = new LMJelinekMercerSimilarity(lambda);
 						System.out
-								.println("Usando model de similitud: LMJelinekMercerSimilarity con lambda: " + lambda);
+								.println("Usando modelo de similaridad: LMJelinekMercerSimilarity con lambda: " + lambda);
 					} else if (model.equals("dir")) {
 						float mu = Float.parseFloat(args[++i]);
 						similarity = new LMDirichletSimilarity(mu);
-						System.out.println("Usando model de similitud: LMDirichletSimilarity con mu: " + mu);
+						System.out.println("Usando modelo de similaridad: LMDirichletSimilarity con mu: " + mu);
 					} else {
 						System.err.println("Invalid arg '" + model + "' for -search.\n");
 						System.exit(-1);
@@ -177,7 +179,7 @@ public class CACMEval {
 				setOpIfNone(IndexOperation.SEARCH);
 				if (args.length - 1 >= i + 1) {
 					cut = Integer.parseInt(args[++i]);
-					System.out.println("Usando " + cut + " documentos del ranking para el cómputo del MAP.");
+					System.out.println("Usando " + cut + " precisión de corte del ranking para el cómputo del MAP.");
 					break;
 				} else {
 					System.err.println("Wrong option -cut.\n");
@@ -219,7 +221,66 @@ public class CACMEval {
 				}
 			case ("-evaljm"):
 				setOpIfNone(IndexOperation.TRAINING_TEST);
-			
+				if (args.length - 1 >= i + 3) {
+					cut = Integer.parseInt(args[++i]);
+					System.out.println("Usando " + cut + " precisión de corte del ranking para el cómputo del MAP.");
+					similarity = new LMJelinekMercerSimilarity(0);
+					String arg = args[++i];
+					String[] queries = arg.split("-");
+					if (queries.length > 1) {
+						trainingQueryList.add(Integer.parseInt(queries[0]));
+						trainingQueryList.add(Integer.parseInt(queries[1]));
+						System.out.println("Using queries on training between " + arg);
+					} else {
+						System.err.println("Wrong parameter of training queries for -evaljm.\n");
+						System.exit(-1);
+					}
+					arg = args[++i];
+					queries = arg.split("-");
+					if (queries.length > 1) {
+						testQueryList.add(Integer.parseInt(queries[0]));
+						testQueryList.add(Integer.parseInt(queries[1]));
+						System.out.println("Using queries on training between " + arg);
+					} else {
+						System.err.println("Wrong parameter of test queries for -evaljm.\n");
+						System.exit(-1);
+					}
+					break;
+				} else {
+					System.err.println("Wrong option -evaljm.\n");
+					System.exit(-1);
+				}
+			case ("-evaldir"):
+				setOpIfNone(IndexOperation.TRAINING_TEST);
+				if (args.length - 1 >= i + 3) {
+					cut = Integer.parseInt(args[++i]);
+					System.out.println("Usando " + cut + " precisión de corte del ranking para el cómputo del MAP.");
+					similarity = new LMDirichletSimilarity(0);
+					String arg = args[++i];
+					String[] queries = arg.split("-");
+					if (queries.length > 1) {
+						trainingQueryList.add(Integer.parseInt(queries[0]));
+						trainingQueryList.add(Integer.parseInt(queries[1]));
+						System.out.println("Using queries on training between " + arg);
+					} else {
+						System.err.println("Wrong parameter of training queries for -evaljm.\n");
+						System.exit(-1);
+					}
+					arg = args[++i];
+					queries = arg.split("-");
+					if (queries.length > 1) {
+						testQueryList.add(Integer.parseInt(queries[0]));
+						testQueryList.add(Integer.parseInt(queries[1]));
+						System.out.println("Using queries on training between " + arg);
+					} else {
+						System.err.println("Wrong parameter of test queries for -evaljm.\n");
+						System.exit(-1);
+					}
+					break;
+				} else {
+					System.err.println("Wrong option -evaljm.\n");
+					System.exit(-1);
+				}
 			}
 		}
 		Date start = new Date();
@@ -251,7 +312,7 @@ public class CACMEval {
 			} else if (CACMEval.OP.equals(IndexOperation.SEARCH)) {
 				doSearch(indexPath, similarity, queryList, top, cut);
 			} else if (CACMEval.OP.equals(IndexOperation.TRAINING_TEST)) {
-				
+				//TODO doTrainingTest();
 			}
 			if (end == null) {
 				end = new Date();
