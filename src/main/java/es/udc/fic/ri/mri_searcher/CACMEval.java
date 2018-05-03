@@ -275,11 +275,20 @@ public class CACMEval {
 				//Preparamos las queries pedidas y los campos
 				String[] fields = {"T","W"};
 				
+				//Creamos variables para las métricas promediadas.
+				float meanPAt10 = 0;
+				float meanPAt20 = 0;
+				float meanRecallAt10 = 0;
+				float meanRecallAt20 = 0;
+				float meanAveragePrecission = 0;
+				int i;
 				//Por cada query, mostramos query, documentos con info, y métricas
-				for (int i=queryList.get(0); i<=queryList.get(queryList.size()-1); i++) {
+				for (i=queryList.get(0); i<=queryList.get(queryList.size()-1); i++) {
 					
 					int rels10Count = 0;
 					int rels20Count = 0;
+					int relsCount = 0;
+					float avgPrecission = 0;
 					QueryType query = queryManagement.getQuery(i);
 					System.out.println("\nQuery: " + query.getBody());
 					String escapedQuery = MultiFieldQueryParser.escape(query.getBody());
@@ -304,36 +313,49 @@ public class CACMEval {
 						System.out.println("\nIs relevant: " + query.isRelevant(scoredDoc.doc) + "\n");
 						System.out.println("---------------------------------------------------------");
 						
-						if(j < 20) {
-							if (query.isRelevant(scoredDoc.doc)) {
+						if (query.isRelevant(scoredDoc.doc)) {
+							if(j < 20) {
 								if (j < 10) {
 									rels10Count++;
 								}
 								rels20Count++;
 							}
+							relsCount++;
+							avgPrecission += (float)relsCount/(j+1);;
 						}
 					}
 					//Metrica P@N para N = 10 y 20.
 					System.out.println("P@10: " + (float)rels10Count/10 );
+					meanPAt10 += (float)rels10Count/10;
 					System.out.println("P@20: " + (float)rels20Count/20 );
+					meanPAt20 += (float)rels20Count/20;
 					System.out.println("---------------------------------------------------------");
 					//Metrica Recall@N para N = 10 y 20.
 					System.out.println("Recall@10: " + (float)rels10Count/query.getRelDocs().size());
+					meanRecallAt10 += (float)rels10Count/query.getRelDocs().size();
 					System.out.println("Recall@20: " + (float)rels20Count/query.getRelDocs().size());
+					meanRecallAt20 += (float)rels20Count/query.getRelDocs().size();
 					System.out.println("---------------------------------------------------------");
 					//Métrica para AP TODO
-				}	
-				//TODO las medias para todas las queries
+					System.out.println("AP: " + avgPrecission/relsCount);
+					meanAveragePrecission += avgPrecission/relsCount;
+					System.out.println("---------------------------------------------------------\n");
+					System.out.println("*********************************************************");
+				}
+				//Medias para las métricas para todas las queries
+				int queryNo = i - queryList.get(0);
+				System.out.println("Mean P@10 for '" + queryNo + "' queries: " + meanPAt10/queryNo );
+				System.out.println("Mean P@20 for '" + queryNo + "' queries: " + meanPAt20/queryNo);
+				System.out.println("Mean Recall@10 for '" + queryNo + "' queries: " + meanRecallAt10/queryNo);
+				System.out.println("Mean Recall@20 for '" + queryNo + "' queries: " + meanRecallAt20/queryNo);
+				System.out.println("MAP for '" + queryNo + "' queries: " + meanAveragePrecission/queryNo);
 			}
 			if (end == null) {
 				end = new Date();
 			}
 			System.out.println(end.getTime() / 1000 - start.getTime() / 1000 + " total seconds");
-		} catch (IOException e) {
+		} catch (IOException | org.apache.lucene.queryparser.classic.ParseException e) {
 			System.err.println("Caught a " + e.getClass() + " with message: " + e.getMessage());
-			e.printStackTrace();
-		} catch (org.apache.lucene.queryparser.classic.ParseException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
