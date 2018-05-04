@@ -312,7 +312,7 @@ public class CACMEval {
 			} else if (CACMEval.OP.equals(IndexOperation.SEARCH)) {
 				doSearch(indexPath, similarity, queryList, top, cut);
 			} else if (CACMEval.OP.equals(IndexOperation.TRAINING_TEST)) {
-				//TODO doTrainingTest();
+				doTrainingTest(indexPath, similarity, trainingQueryList, testQueryList, cut);
 			}
 			if (end == null) {
 				end = new Date();
@@ -324,6 +324,11 @@ public class CACMEval {
 		}
 	}
 
+	static void doTrainingTest(String indexPath, Similarity similarity, List<Integer> trainingQueryList, List<Integer> testQueryList, int cut) {
+		
+		
+	}
+	
 	static void doSearch(String indexPath, Similarity similarity, List<Integer> queryList, int top, int cut) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
 		
 		//Usamos indexpath obtenido en indexin
@@ -362,9 +367,9 @@ public class CACMEval {
 			System.out.println("\nQuery: " + query.getBody());
 			String escapedQuery = MultiFieldQueryParser.escape(query.getBody());
 			String[] queries = {escapedQuery, escapedQuery};
-			
+			MultiFieldQueryParser m = new MultiFieldQueryParser(fields, analyzer);
 			Query q =  MultiFieldQueryParser.parse(queries, fields, analyzer);
-			
+			q = m.parse(escapedQuery);
 			TopDocs topDocs = indexSearcher.search(q, top);
 			ScoreDoc[] scoreDocs = topDocs.scoreDocs;
 			System.out.println("Number of Top Docs: " + topDocs.scoreDocs.length);
@@ -407,7 +412,7 @@ public class CACMEval {
 				System.out.println("Recall@10: " + (float)rels10Count/relSize);
 				System.out.println("Recall@20: " + (float)rels20Count/relSize);
 				System.out.println("---------------------------------------------------------");
-				//Métrica para AP TODO
+				//Métrica para AP
 				System.out.println("AP: " + avgPrecission/relsCount);
 				if (cut <= avgPrecission/relsCount)
 					meanAveragePrecission += avgPrecission/relsCount;
