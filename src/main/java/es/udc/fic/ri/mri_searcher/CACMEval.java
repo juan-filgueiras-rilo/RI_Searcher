@@ -50,6 +50,7 @@ public class CACMEval {
 
 	private static IndexOperation OP = IndexOperation.NONE;
 	private static String PROPERTIES_PATH = System.getProperty("user.dir") + "\\paths.properties";
+
 	private static boolean setOpIfNone(IndexOperation op) {
 		if (CACMEval.OP.equals(IndexOperation.NONE)) {
 			CACMEval.OP = op;
@@ -72,6 +73,8 @@ public class CACMEval {
 		int n_rel_docs = 0;
 		int n_terms_to_expand = 0;
 		List<Integer> queryList = new ArrayList<>();
+		List<Integer> trainingQueryList = new ArrayList<>();
+		List<Integer> testQueryList = new ArrayList<>();
 		Similarity similarity = new BM25Similarity();
 
 		for (int i = 0; i < args.length; i++) {
@@ -127,12 +130,12 @@ public class CACMEval {
 					if (model.equals("jm")) {
 						float lambda = Float.parseFloat(args[++i]);
 						similarity = new LMJelinekMercerSimilarity(lambda);
-						System.out
-								.println("Usando model de similitud: LMJelinekMercerSimilarity con lambda: " + lambda);
+						System.out.println(
+								"Usando model de similaridad: LMJelinekMercerSimilarity con lambda: " + lambda);
 					} else if (model.equals("dir")) {
 						float mu = Float.parseFloat(args[++i]);
 						similarity = new LMDirichletSimilarity(mu);
-						System.out.println("Usando model de similitud: LMDirichletSimilarity con mu: " + mu);
+						System.out.println("Usando model de similaridad: LMDirichletSimilarity con mu: " + mu);
 					} else {
 						System.err.println("Invalid arg '" + model + "' for -indexingmodel.\n");
 						System.exit(-1);
@@ -149,12 +152,12 @@ public class CACMEval {
 					if (model.equals("jm")) {
 						float lambda = Float.parseFloat(args[++i]);
 						similarity = new LMJelinekMercerSimilarity(lambda);
-						System.out
-								.println("Usando model de similitud: LMJelinekMercerSimilarity con lambda: " + lambda);
+						System.out.println(
+								"Usando modelo de similaridad: LMJelinekMercerSimilarity con lambda: " + lambda);
 					} else if (model.equals("dir")) {
 						float mu = Float.parseFloat(args[++i]);
 						similarity = new LMDirichletSimilarity(mu);
-						System.out.println("Usando model de similitud: LMDirichletSimilarity con mu: " + mu);
+						System.out.println("Usando modelo de similaridad: LMDirichletSimilarity con mu: " + mu);
 					} else {
 						System.err.println("Invalid arg '" + model + "' for -search.\n");
 						System.exit(-1);
@@ -177,7 +180,7 @@ public class CACMEval {
 				setOpIfNone(IndexOperation.SEARCH);
 				if (args.length - 1 >= i + 1) {
 					cut = Integer.parseInt(args[++i]);
-					System.out.println("Usando " + cut + " documentos del ranking para el cómputo del MAP.");
+					System.out.println("Usando " + cut + " precisión de corte del ranking para el cómputo del MAP.");
 					break;
 				} else {
 					System.err.println("Wrong option -cut.\n");
@@ -219,8 +222,65 @@ public class CACMEval {
 				}
 			case ("-evaljm"):
 				setOpIfNone(IndexOperation.TRAINING_TEST);
-				break;
-			case("-prf"):
+				if (args.length - 1 >= i + 3) {
+					cut = Integer.parseInt(args[++i]);
+					System.out.println("Usando " + cut + " precisión de corte del ranking para el cómputo del MAP.");
+					similarity = new LMJelinekMercerSimilarity(0);
+					String arg = args[++i];
+					String[] queries = arg.split("-");
+					if (queries.length > 1) {
+						trainingQueryList.add(Integer.parseInt(queries[0]));
+						trainingQueryList.add(Integer.parseInt(queries[1]));
+						System.out.println("Using queries on training between " + arg);
+					} else {
+						System.err.println("Wrong parameter of training queries for -evaljm.\n");
+						System.exit(-1);
+					}
+					arg = args[++i];
+					queries = arg.split("-");
+					if (queries.length > 1) {
+						testQueryList.add(Integer.parseInt(queries[0]));
+						testQueryList.add(Integer.parseInt(queries[1]));
+						System.out.println("Using queries on training between " + arg);
+					} else {
+						System.err.println("Wrong parameter of test queries for -evaljm.\n");
+						System.exit(-1);
+					}
+					break;
+				} else {
+					System.err.println("Wrong option -evaljm.\n");
+					System.exit(-1);
+				}
+			case ("-evaldir"):
+				setOpIfNone(IndexOperation.TRAINING_TEST);
+				if (args.length - 1 >= i + 3) {
+					cut = Integer.parseInt(args[++i]);
+					System.out.println("Usando " + cut + " precisión de corte del ranking para el cómputo del MAP.");
+					similarity = new LMDirichletSimilarity(0);
+					String arg = args[++i];
+					String[] queries = arg.split("-");
+					if (queries.length > 1) {
+						trainingQueryList.add(Integer.parseInt(queries[0]));
+						trainingQueryList.add(Integer.parseInt(queries[1]));
+						System.out.println("Using queries on training between " + arg);
+					} else {
+						System.err.println("Wrong parameter of training queries for -evaldir.\n");
+						System.exit(-1);
+					}
+					arg = args[++i];
+					queries = arg.split("-");
+					if (queries.length > 1) {
+						testQueryList.add(Integer.parseInt(queries[0]));
+						testQueryList.add(Integer.parseInt(queries[1]));
+						System.out.println("Using queries on training between " + arg);
+					} else {
+						System.err.println("Wrong parameter of test queries for -evaldir.\n");
+					}
+				} else {
+					System.err.println("Wrong option -evaldir.\n");
+					System.exit(-1);
+				}
+			case ("-prf"):
 				setOpIfNone(IndexOperation.PRF);
 				if (args.length - 1 >= i + 2) {
 					String model = args[++i];
@@ -242,38 +302,38 @@ public class CACMEval {
 					System.err.println("Missing arg for -prf.\n");
 					System.exit(-1);
 				}
-            case("-prs"):
-                setOpIfNone(IndexOperation.PRF);
-                if (args.length - 1 >= i + 1) {
-                    n_rel_docs = Integer.parseInt(args[++i]);
-                    System.out.println("El Pseudo Relevance Set se construirá con los primeros " + n_rel_docs + " documentos.");
-                    break;
-                } else {
-                    System.err.println("Missing arg for -prs.\n");
-                    System.exit(-1);
-                }
-            case("-exp"):
-                setOpIfNone(IndexOperation.PRF);
-                if (args.length - 1 >= i + 1) {
-                    n_terms_to_expand = Integer.parseInt(args[++i]);
-                    System.out.println("Expande la query original con los mejores " + n_rel_docs + " términos.");
-                    break;
-                } else {
-                    System.err.println("Missing arg for -exp.\n");
-                    System.exit(-1);
-                }
-            case("-query"):
-                setOpIfNone(IndexOperation.PRF);
-                if (args.length - 1 >= i + 1) {
-                    queryList.add(Integer.parseInt(args[++i]));
-                    System.out.println("Seleccionada query con ID: " + args[i]);
-                    break;
-                } else {
-                    System.err.println("Missing arg for -query.\n");
-                    System.exit(-1);
-                }
+			case ("-prs"):
+				setOpIfNone(IndexOperation.PRF);
+				if (args.length - 1 >= i + 1) {
+					n_rel_docs = Integer.parseInt(args[++i]);
+					System.out.println(
+							"El Pseudo Relevance Set se construirá con los primeros " + n_rel_docs + " documentos.");
+					break;
+				} else {
+					System.err.println("Missing arg for -prs.\n");
+					System.exit(-1);
+				}
+			case ("-exp"):
+				setOpIfNone(IndexOperation.PRF);
+				if (args.length - 1 >= i + 1) {
+					n_terms_to_expand = Integer.parseInt(args[++i]);
+					System.out.println("Expande la query original con los mejores " + n_rel_docs + " términos.");
+					break;
+				} else {
+					System.err.println("Missing arg for -exp.\n");
+					System.exit(-1);
+				}
+			case ("-query"):
+				setOpIfNone(IndexOperation.PRF);
+				if (args.length - 1 >= i + 1) {
+					queryList.add(Integer.parseInt(args[++i]));
+					System.out.println("Seleccionada query con ID: " + args[i]);
+					break;
+				} else {
+					System.err.println("Missing arg for -query.\n");
+					System.exit(-1);
+				}
 			}
-
 		}
 		Date start = new Date();
 		Date end = null;
@@ -304,32 +364,35 @@ public class CACMEval {
 			} else if (CACMEval.OP.equals(IndexOperation.SEARCH)) {
 				doSearch(indexPath, similarity, queryList, top, cut);
 			} else if (CACMEval.OP.equals(IndexOperation.TRAINING_TEST)) {
-				
+				doTrainingTest(indexPath, similarity, trainingQueryList, testQueryList, cut);
 			} else if (CACMEval.OP.equals(IndexOperation.PRF)) {
-                if (queryList.size() == 1){
-                    Properties propsFile = new Properties();
-                    propsFile.load(new InputStreamReader(Files.newInputStream(Paths.get(CACMEval.PROPERTIES_PATH))));
-                    String queryPath = propsFile.getProperty("queryPath");
-                    String qrelsPath = propsFile.getProperty("qrelsPath");
-                    QueryManagement queryManagement = new QueryManagement(queryPath, qrelsPath);
-                    List<String> terms_to_expand_query = new ArrayList<>();
-                    String terms_expand_query = "";
-                    int new_id = 0;
-                    doSearch(indexPath,similarity,queryList,top,cut);
-                    /*Extraer mejores términos para expandir la query y meterlos en terms_to_expand_query*/
-                    for (String term:terms_to_expand_query){
-                        terms_expand_query += " " + term;
-                    }
-                    new_id = queryManagement.expandQuery(queryList.get(0),terms_expand_query);
-                    queryList.clear();
-                    queryList.add(new_id);
-                    doSearch(indexPath,similarity,queryList,top,cut);
-                    /*Extraer resultados*/
-                    /*Comparar resultados*/
-                }else{
-                    System.out.println("Falta argumento -query");
-                }
-            }
+				if (queryList.size() == 1) {
+					Properties propsFile = new Properties();
+					propsFile.load(new InputStreamReader(Files.newInputStream(Paths.get(CACMEval.PROPERTIES_PATH))));
+					String queryPath = propsFile.getProperty("queryPath");
+					String qrelsPath = propsFile.getProperty("qrelsPath");
+					QueryManagement queryManagement = new QueryManagement(queryPath, qrelsPath);
+					List<String> terms_to_expand_query = new ArrayList<>();
+					String terms_expand_query = "";
+					int new_id = 0;
+					doSearch(indexPath, similarity, queryList, top, cut);
+					/*
+					 * Extraer mejores términos para expandir la query y meterlos en
+					 * terms_to_expand_query
+					 */
+					for (String term : terms_to_expand_query) {
+						terms_expand_query += " " + term;
+					}
+					new_id = queryManagement.expandQuery(queryList.get(0), terms_expand_query);
+					queryList.clear();
+					queryList.add(new_id);
+					doSearch(indexPath, similarity, queryList, top, cut);
+					/* Extraer resultados */
+					/* Comparar resultados */
+				} else {
+					System.out.println("Falta argumento -query");
+				}
+			}
 			if (end == null) {
 				end = new Date();
 			}
@@ -340,36 +403,42 @@ public class CACMEval {
 		}
 	}
 
-	static void doSearch(String indexPath, Similarity similarity, List<Integer> queryList, int top, int cut) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
-		
-		//Usamos indexpath obtenido en indexin
+	static void doTrainingTest(String indexPath, Similarity similarity, List<Integer> trainingQueryList,
+			List<Integer> testQueryList, int cut) {
+
+	}
+
+	static void doSearch(String indexPath, Similarity similarity, List<Integer> queryList, int top, int cut)
+			throws IOException, org.apache.lucene.queryparser.classic.ParseException {
+
+		// Usamos indexpath obtenido en indexin
 		Directory dir = FSDirectory.open(Paths.get(indexPath));
 		DirectoryReader indexReader = DirectoryReader.open(dir);
 		IndexSearcher indexSearcher = new IndexSearcher(indexReader);
-		//Seteamos la similaridad con la suavización para la búsqueda
+		// Seteamos la similaridad con la suavización para la búsqueda
 		indexSearcher.setSimilarity(similarity);
-		
-		//Creamos la lista para el Query Management
+
+		// Creamos la lista para el Query Management
 		Properties propsFile = new Properties();
 		propsFile.load(new InputStreamReader(Files.newInputStream(Paths.get(CACMEval.PROPERTIES_PATH))));
 		String queryPath = propsFile.getProperty("queryPath");
 		String qrelsPath = propsFile.getProperty("qrelsPath");
 		QueryManagement queryManagement = new QueryManagement(queryPath, qrelsPath);
 		Analyzer analyzer = new StandardAnalyzer();
-		
-		//Preparamos las queries pedidas y los campos
-		String[] fields = {"T","W"};
-		
-		//Creamos variables para las métricas promediadas.
+
+		// Preparamos las queries pedidas y los campos
+		String[] fields = { "T", "W" };
+
+		// Creamos variables para las métricas promediadas.
 		float meanPAt10 = 0;
 		float meanPAt20 = 0;
 		float meanRecallAt10 = 0;
 		float meanRecallAt20 = 0;
 		float meanAveragePrecission = 0;
 		int i;
-		//Por cada query, mostramos query, documentos con info, y métricas
-		for (i=queryList.get(0); i<=queryList.get(queryList.size()-1); i++) {
-			
+		// Por cada query, mostramos query, documentos con info, y métricas
+		for (i = queryList.get(0); i <= queryList.get(queryList.size() - 1); i++) {
+
 			int rels10Count = 0;
 			int rels20Count = 0;
 			int relsCount = 0;
@@ -377,67 +446,68 @@ public class CACMEval {
 			QueryType query = queryManagement.getQuery(i);
 			System.out.println("\nQuery: " + query.getBody());
 			String escapedQuery = MultiFieldQueryParser.escape(query.getBody());
-			String[] queries = {escapedQuery, escapedQuery};
-			
-			Query q =  MultiFieldQueryParser.parse(queries, fields, analyzer);
-			
+			String[] queries = { escapedQuery, escapedQuery };
+			MultiFieldQueryParser m = new MultiFieldQueryParser(fields, analyzer);
+			Query q = MultiFieldQueryParser.parse(queries, fields, analyzer);
+			q = m.parse(escapedQuery);
 			TopDocs topDocs = indexSearcher.search(q, top);
 			ScoreDoc[] scoreDocs = topDocs.scoreDocs;
 			System.out.println("Number of Top Docs: " + topDocs.scoreDocs.length);
-			
+
 			for (int j = 0; j < scoreDocs.length; j++) {
-				
+
 				ScoreDoc scoredDoc = scoreDocs[j];
 				System.out.println("\nDoc nº: " + scoredDoc.doc + ", score: " + scoredDoc.score);
 				Document doc = indexReader.document(scoredDoc.doc);
 				List<IndexableField> docFields = doc.getFields();
 				for (IndexableField docField : docFields) {
-					System.out.println(docField.name() + ": " +docField.stringValue());
+					System.out.println(docField.name() + ": " + docField.stringValue());
 				}
 				query.isRelevant(Integer.parseInt(doc.getField("I").stringValue().trim()));
 				System.out.println("\nIs relevant: " + query.isRelevant(scoredDoc.doc) + "\n");
 				System.out.println("---------------------------------------------------------");
-				
+
 				if (query.isRelevant(scoredDoc.doc)) {
-					if(j < 20) {
+					if (j < 20) {
 						if (j < 10) {
 							rels10Count++;
 						}
 						rels20Count++;
 					}
 					relsCount++;
-					avgPrecission += (float)relsCount/(j+1);;
+					avgPrecission += (float) relsCount / (j + 1);
+					;
 				}
 			}
 			int relSize = query.getRelDocs().size();
 			if (relSize != 0 && relsCount != 0) {
-				//Metrica P@N para N = 10 y 20.
-				System.out.println("P@10: " + (float)rels10Count/10);
-				meanPAt10 += (float)rels10Count/10;
-				System.out.println("P@20: " + (float)rels20Count/20);
-				meanPAt20 += (float)rels20Count/20;
+				// Metrica P@N para N = 10 y 20.
+				System.out.println("P@10: " + (float) rels10Count / 10);
+				meanPAt10 += (float) rels10Count / 10;
+				System.out.println("P@20: " + (float) rels20Count / 20);
+				meanPAt20 += (float) rels20Count / 20;
 				System.out.println("---------------------------------------------------------");
-				//Metrica Recall@N para N = 10 y 20.
-				meanRecallAt10 += (float)rels10Count/relSize;
-				meanRecallAt20 += (float)rels20Count/relSize;
-				System.out.println("Recall@10: " + (float)rels10Count/relSize);
-				System.out.println("Recall@20: " + (float)rels20Count/relSize);
+				// Metrica Recall@N para N = 10 y 20.
+				meanRecallAt10 += (float) rels10Count / relSize;
+				meanRecallAt20 += (float) rels20Count / relSize;
+				System.out.println("Recall@10: " + (float) rels10Count / relSize);
+				System.out.println("Recall@20: " + (float) rels20Count / relSize);
 				System.out.println("---------------------------------------------------------");
-				//Métrica para AP TODO
-				System.out.println("AP: " + avgPrecission/relsCount);
-				if (cut <= avgPrecission/relsCount)
-					meanAveragePrecission += avgPrecission/relsCount;
+				// Métrica para AP
+				System.out.println("AP: " + avgPrecission / relsCount);
+				if (cut <= avgPrecission / relsCount)
+					meanAveragePrecission += avgPrecission / relsCount;
 				System.out.println("---------------------------------------------------------\n");
 			}
 			System.out.println("*********************************************************");
 		}
-		//Medias para las métricas para todas las queries
+		// Medias para las métricas para todas las queries
 		int queryNo = i - queryList.get(0);
-		System.out.println("Mean P@10 for '" + queryNo + "' queries: " + meanPAt10/queryNo);
-		System.out.println("Mean P@20 for '" + queryNo + "' queries: " + meanPAt20/queryNo);
-		System.out.println("Mean Recall@10 for '" + queryNo + "' queries: " + meanRecallAt10/queryNo);
-		System.out.println("Mean Recall@20 for '" + queryNo + "' queries: " + meanRecallAt20/queryNo);
-		System.out.println("MAP for '" + queryNo + "' queries: " + meanAveragePrecission/queryNo);
+		System.out.println("Mean P@10 for '" + queryNo + "' queries: " + meanPAt10 / queryNo);
+		System.out.println("Mean P@20 for '" + queryNo + "' queries: " + meanPAt20 / queryNo);
+		System.out.println("Mean Recall@10 for '" + queryNo + "' queries: " + meanRecallAt10 / queryNo);
+		System.out.println("Mean Recall@20 for '" + queryNo + "' queries: " + meanRecallAt20 / queryNo);
+		System.out.println("MAP for '" + queryNo + "' queries: " + meanAveragePrecission / queryNo);
 	}
 
 	/**
