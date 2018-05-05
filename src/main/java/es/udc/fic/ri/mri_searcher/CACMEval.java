@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -446,39 +447,41 @@ public class CACMEval {
 		QueryManagement queryManagement = new QueryManagement(queryPath, qrelsPath);
 		
 		//Parametros de función
-		float param;
-		float sum = 1, max = 1;
+		BigDecimal param;
+		BigDecimal sum = new BigDecimal(1), max = new BigDecimal(1);
 		boolean isJm = false;
 		String paramName = "";
 		MetricsManagement globalMetrics;
 		float bestMAP = 0, bestParam = 0;
 		
 		if (similarity.getClass().getName().equals("org.apache.lucene.search.similarities.LMJelinekMercerSimilarity")) {
-			sum = (float) 0.1;
-			max = (float) 1.0;
+			sum = new BigDecimal(0.1);
+			max =  new BigDecimal(1.0);
 			isJm = true;
 			paramName = "lambda";
 		} else if (similarity.getClass().getName().equals("org.apache.lucene.search.similarities.LMDirichletSimilarity")) {
-			sum = 500;
-			max = 5000;
+			sum = new BigDecimal(500);
+			max = new BigDecimal(5000);
 			paramName = "mu";
 		}
-		
-		for (param = 0 ; param <= max+0.1; param += sum) {
+
+		for (param = new BigDecimal(0) ; param.floatValue() <= max.floatValue(); param = param.add(sum)) {
+			param = param.setScale(1, BigDecimal.ROUND_DOWN);
 			if (isJm) {
-				similarity = new LMJelinekMercerSimilarity(param);
+				similarity = new LMJelinekMercerSimilarity(param.floatValue());
 			} else {
-				similarity = new LMDirichletSimilarity(param);
+				similarity = new LMDirichletSimilarity(param.intValue());
 			}
 			System.out.print(paramName + ": " + param);
 			indexSearcher.setSimilarity(similarity);
 			globalMetrics = doSearch(indexReader, indexSearcher, queryManagement, trainingQueryList, 0, cut);
 			globalMetrics.computeMeanAveragePrecission();
-			float map = globalMetrics.getMeanAveragePrecission();
+			BigDecimal map = new BigDecimal(globalMetrics.getMeanAveragePrecission());
+			map = map.setScale(5, BigDecimal.ROUND_DOWN);
 			System.out.println(" -> MAP: " + map);
-			if (map > bestMAP) {
-				bestMAP = map;
-				bestParam = param;
+			if (map.floatValue() > bestMAP) {
+				bestMAP = map.floatValue();
+				bestParam = param.floatValue();
 			}
 		}
 		System.out.println("Best Mean Average Precission on training is: " + bestMAP + ", with " + paramName + ": " + bestParam);
@@ -488,10 +491,11 @@ public class CACMEval {
 		} else {
 			similarity = new LMDirichletSimilarity(bestParam);
 		}
+		indexSearcher.setSimilarity(similarity);
 		globalMetrics = doSearch(indexReader, indexSearcher, queryManagement, testQueryList, 0, cut);
 		globalMetrics.computeMeanAveragePrecission();
 		float map = globalMetrics.getMeanAveragePrecission();
-		System.out.println("Mean Average Precission on training is: " + map + ", with " + paramName + ": " + bestParam);
+		System.out.println("Mean Average Precission on test is: " + map + ", with " + paramName + ": " + bestParam);
 	}
 
 	static MetricsManagement doSearch(DirectoryReader indexReader, IndexSearcher indexSearcher, QueryManagement queryManagement,
