@@ -31,6 +31,7 @@ import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
+import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -68,7 +69,7 @@ public class CACMEval {
 		// String docsPath = "D:\\RI\\cacm";
 		String docsPath = "D:\\UNI\\3\\Recuperacion de la Informacion\\2018-2\\docs\\cacm.all";
 		OpenMode modo = OpenMode.CREATE;
-		float cut = 0;
+		int cut = 0;
 		int top = 0;
 		int n_rel_docs = 0;
 		int n_terms_to_expand = 0;
@@ -179,7 +180,7 @@ public class CACMEval {
 			case ("-cut"):
 				setOpIfNone(IndexOperation.SEARCH);
 				if (args.length - 1 >= i + 1) {
-					cut = Float.parseFloat(args[++i]);
+					cut = Integer.parseInt(args[++i]);
 					System.out.println("Usando " + cut + " precisión de corte del ranking para el cómputo del MAP.");
 					break;
 				} else {
@@ -223,7 +224,7 @@ public class CACMEval {
 			case ("-evaljm"):
 				setOpIfNone(IndexOperation.TRAINING_TEST);
 				if (args.length - 1 >= i + 3) {
-					cut = Float.parseFloat(args[++i]);
+					cut = Integer.parseInt(args[++i]);
 					System.out.println("Usando " + cut + " precisión de corte del ranking para el cómputo del MAP.");
 					similarity = new LMJelinekMercerSimilarity(0);
 					String arg = args[++i];
@@ -254,7 +255,7 @@ public class CACMEval {
 			case ("-evaldir"):
 				setOpIfNone(IndexOperation.TRAINING_TEST);
 				if (args.length - 1 >= i + 3) {
-					cut = Float.parseFloat(args[++i]);
+					cut = Integer.parseInt(args[++i]);
 					System.out.println("Usando " + cut + " precisión de corte del ranking para el cómputo del MAP.");
 					similarity = new LMDirichletSimilarity(0);
 					String arg = args[++i];
@@ -276,6 +277,7 @@ public class CACMEval {
 					} else {
 						System.err.println("Wrong parameter of test queries for -evaldir.\n");
 					}
+					break;
 				} else {
 					System.err.println("Wrong option -evaldir.\n");
 					System.exit(-1);
@@ -362,12 +364,29 @@ public class CACMEval {
 				indexDocs(indexWriter, docDir);
 				indexWriter.close();
 			} else if (CACMEval.OP.equals(IndexOperation.SEARCH)) {
-				MetricsManagement globalMetrics = doSearch(indexPath, similarity, queryList, top, cut, true);
-				int queryNo = globalMetrics.getQueriesSize();
+
+				// Usamos indexpath obtenido en indexin
+				Directory dir = FSDirectory.open(Paths.get(indexPath));
+				DirectoryReader indexReader = DirectoryReader.open(dir);
+				IndexSearcher indexSearcher = new IndexSearcher(indexReader);
+				// Seteamos la similaridad con la suavización para la búsqueda
+				indexSearcher.setSimilarity(similarity);
+
+				// Creamos la lista para el Query Management
+				Properties propsFile = new Properties();
+				propsFile.load(new InputStreamReader(Files.newInputStream(Paths.get(CACMEval.PROPERTIES_PATH))));
+				String queryPath = propsFile.getProperty("queryPath");
+				String qrelsPath = propsFile.getProperty("qrelsPath");
+				QueryManagement queryManagement = new QueryManagement(queryPath, qrelsPath);
+				
+				MetricsManagement globalMetrics = doSearch(indexReader, indexSearcher, queryManagement, queryList, top, cut);
+				int queryNo = queryList.get(queryList.size()-1) - queryList.get(0) + 1;
 				System.out.println("Mean P@10 for '" + queryNo + "' queries: " + globalMetrics.getMeanPAt10());
 				System.out.println("Mean P@20 for '" + queryNo + "' queries: " + globalMetrics.getMeanPAt20());
-				System.out.println("Mean Recall@10 for '" + queryNo + "' queries: " + globalMetrics.getMeanRecallAt10());
-				System.out.println("Mean Recall@20 for '" + queryNo + "' queries: " + globalMetrics.getMeanRecallAt20());
+				System.out
+						.println("Mean Recall@10 for '" + queryNo + "' queries: " + globalMetrics.getMeanRecallAt10());
+				System.out
+						.println("Mean Recall@20 for '" + queryNo + "' queries: " + globalMetrics.getMeanRecallAt20());
 				System.out.println("MAP for '" + queryNo + "' queries: " + globalMetrics.getMeanAveragePrecission());
 			} else if (CACMEval.OP.equals(IndexOperation.TRAINING_TEST)) {
 				doTrainingTest(indexPath, similarity, trainingQueryList, testQueryList, cut);
@@ -384,7 +403,13 @@ public class CACMEval {
 					List<String> terms_to_expand_query;
 					String terms_expand_query = "";
 					int new_id;
-					metricsPrePRF = doSearch(indexPath, similarity, queryList, top, cut, true);
+					// Usamos indexpath obtenido en indexin
+					Directory dir = FSDirectory.open(Paths.get(indexPath));
+					DirectoryReader indexReader = DirectoryReader.open(dir);
+					IndexSearcher indexSearcher = new IndexSearcher(indexReader);
+					// Seteamos la similaridad con la suavización para la búsqueda
+					indexSearcher.setSimilarity(similarity);
+					metricsPrePRF = doSearch(indexReader, indexSearcher, queryManagement, queryList, top, cut);
 					termsToPRF = new TermsToPRF(metricsPrePRF.getTd(), n_rel_docs, n_terms_to_expand, indexPath);
 					termsToPRF.computeTerms();
 					terms_to_expand_query = termsToPRF.getTermsToExpandQuery();
@@ -394,7 +419,7 @@ public class CACMEval {
 					new_id = queryManagement.expandQuery(queryList.get(0), terms_expand_query);
 					queryList.clear();
 					queryList.add(new_id);
-					metricsPostPRF = doSearch(indexPath, similarity, queryList, top, cut, true);
+					metricsPostPRF = doSearch(indexReader, indexSearcher, queryManagement, queryList, top, cut);
 					if (metricsPrePRF.getQueriesSize()==metricsPostPRF.getQueriesSize()) {
                         System.out.println("Comparación de búsquedas en PRF: \n ( Métrica - Pre PRF - Post PRF )");
                         System.out.println("Recall@10: " + metricsPrePRF.getMeanRecallAt10() + " - " + metricsPostPRF.getMeanRecallAt10());
@@ -413,27 +438,21 @@ public class CACMEval {
 				end = new Date();
 			}
 			System.out.println(end.getTime() / 1000 - start.getTime() / 1000 + " total seconds");
-		} catch (IOException | org.apache.lucene.queryparser.classic.ParseException e) {
+		} catch (IOException | ParseException e) {
 			System.err.println("Caught a " + e.getClass() + " with message: " + e.getMessage());
 			e.printStackTrace();
 		}
 	}
 
 	static void doTrainingTest(String indexPath, Similarity similarity, List<Integer> trainingQueryList,
-			
-		List<Integer> testQueryList, float cut) {
-
-	}
-
-	static MetricsManagement doSearch(String indexPath, Similarity similarity, List<Integer> queryList, int top, float cut, boolean showText)
-			throws IOException, org.apache.lucene.queryparser.classic.ParseException {
-
+			List<Integer> testQueryList, int cut) throws IOException, ParseException {
+		
 		// Usamos indexpath obtenido en indexin
 		Directory dir = FSDirectory.open(Paths.get(indexPath));
 		DirectoryReader indexReader = DirectoryReader.open(dir);
 		IndexSearcher indexSearcher = new IndexSearcher(indexReader);
 		// Seteamos la similaridad con la suavización para la búsqueda
-		indexSearcher.setSimilarity(similarity);
+		
 
 		// Creamos la lista para el Query Management
 		Properties propsFile = new Properties();
@@ -441,6 +460,59 @@ public class CACMEval {
 		String queryPath = propsFile.getProperty("queryPath");
 		String qrelsPath = propsFile.getProperty("qrelsPath");
 		QueryManagement queryManagement = new QueryManagement(queryPath, qrelsPath);
+		
+		//Parametros de función
+		float param;
+		float sum = 1, max = 1;
+		boolean isJm = false;
+		String paramName = "";
+		MetricsManagement globalMetrics;
+		float bestMAP = 0, bestParam = 0;
+		
+		if (similarity.getClass().getName().equals("org.apache.lucene.search.similarities.LMJelinekMercerSimilarity")) {
+			sum = (float) 0.1;
+			max = (float) 1.0;
+			isJm = true;
+			paramName = "lambda";
+		} else if (similarity.getClass().getName().equals("org.apache.lucene.search.similarities.LMDirichletSimilarity")) {
+			sum = 500;
+			max = 5000;
+			paramName = "mu";
+		}
+		
+		for (param = 0 ; param <= max+0.1; param += sum) {
+			if (isJm) {
+				similarity = new LMJelinekMercerSimilarity(param);
+			} else {
+				similarity = new LMDirichletSimilarity(param);
+			}
+			System.out.print(paramName + ": " + param);
+			indexSearcher.setSimilarity(similarity);
+			globalMetrics = doSearch(indexReader, indexSearcher, queryManagement, trainingQueryList, 0, cut);
+			globalMetrics.computeMeanAveragePrecission();
+			float map = globalMetrics.getMeanAveragePrecission();
+			System.out.println(" -> MAP: " + map);
+			if (map > bestMAP) {
+				bestMAP = map;
+				bestParam = param;
+			}
+		}
+		System.out.println("Best Mean Average Precission on training is: " + bestMAP + ", with " + paramName + ": " + bestParam);
+		System.out.println("Computing for test set... ");
+		if (isJm) {
+			similarity = new LMJelinekMercerSimilarity(bestParam);
+		} else {
+			similarity = new LMDirichletSimilarity(bestParam);
+		}
+		globalMetrics = doSearch(indexReader, indexSearcher, queryManagement, testQueryList, 0, cut);
+		globalMetrics.computeMeanAveragePrecission();
+		float map = globalMetrics.getMeanAveragePrecission();
+		System.out.println("Mean Average Precission on training is: " + map + ", with " + paramName + ": " + bestParam);
+	}
+
+	static MetricsManagement doSearch(DirectoryReader indexReader, IndexSearcher indexSearcher, QueryManagement queryManagement,
+			List<Integer> queryList, int top, int cut) throws IOException, ParseException {
+
 		Analyzer analyzer = new StandardAnalyzer();
 
 		// Preparamos las queries pedidas y los campos
@@ -455,25 +527,27 @@ public class CACMEval {
 			int rels10Count = 0;
 			int rels20Count = 0;
 			int relsCount = 0;
+			int maxDocs = Math.max(top, cut);
 			QueryType query = queryManagement.getQuery(i);
 			String escapedQuery = MultiFieldQueryParser.escape(query.getBody());
 			MultiFieldQueryParser parser = new MultiFieldQueryParser(fields, analyzer);
 			Query q = parser.parse(escapedQuery);
 			QueryMetrics metrics = new QueryMetrics(query, q);
-			TopDocs topDocs = indexSearcher.search(q, top);
+			TopDocs topDocs = indexSearcher.search(q, maxDocs);
 			globalMetrics.setTd(topDocs);
 			ScoreDoc[] scoreDocs = topDocs.scoreDocs;
-			if (showText) {
+			if (top != 0) {
 				System.out.println("\nQuery: " + query.getBody());
-				System.out.println("Number of Top Docs: " + topDocs.scoreDocs.length);
+				System.out.println("---------------------------------------------------------");
+				System.out.println("Number of Top Docs: " + topDocs.totalHits);
 			}
-			
+
 			for (int j = 0; j < scoreDocs.length; j++) {
 
 				ScoreDoc scoredDoc = scoreDocs[j];
 				Document doc = indexReader.document(scoredDoc.doc);
-				
-				if (showText) {
+
+				if ( j < top) {
 					System.out.println("\nDoc nº: " + scoredDoc.doc + ", score: " + scoredDoc.score);
 					List<IndexableField> docFields = doc.getFields();
 					for (IndexableField docField : docFields) {
@@ -491,17 +565,19 @@ public class CACMEval {
 						rels20Count++;
 					}
 					relsCount++;
-					metrics.addPrecission((float) relsCount / (j + 1));
+					if(j < cut) {
+						metrics.addPrecission((float) relsCount / (j + 1));
+					}
 				}
 			}
-			if(metrics.areValid()) {
+			if (metrics.areValid()) {
 				metrics.computePAt10(rels10Count);
 				metrics.computePAt20(rels20Count);
 				metrics.computeRecallAt10(rels10Count);
 				metrics.computeRecallAt20(rels20Count);
 				metrics.computeAveragePrecission();
 				globalMetrics.addQueryMetrics(metrics);
-				if(showText) {
+				if (top != 0) {
 					// Metrica P@N para N = 10 y 20.
 					System.out.println("P@10: " + metrics.getPAt10());
 					System.out.println("P@20: " + metrics.getPAt20());
@@ -515,7 +591,8 @@ public class CACMEval {
 					System.out.println("---------------------------------------------------------\n");
 				}
 			}
-			System.out.println("*********************************************************");
+			if (top!=0)
+				System.out.println("*********************************************************");
 		}
 		// Medias para las métricas para todas las queries
 		globalMetrics.computeAllMetrics();
