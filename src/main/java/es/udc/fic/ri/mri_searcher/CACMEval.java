@@ -68,7 +68,7 @@ public class CACMEval {
 		// String docsPath = "D:\\RI\\cacm";
 		String docsPath = "D:\\UNI\\3º\\Recuperación de la Información\\2018-2\\docs\\cacm.all";
 		OpenMode modo = OpenMode.CREATE;
-		float cut = 0;
+		int cut = 0;
 		int top = 0;
 		int n_rel_docs = 0;
 		int n_terms_to_expand = 0;
@@ -179,7 +179,7 @@ public class CACMEval {
 			case ("-cut"):
 				setOpIfNone(IndexOperation.SEARCH);
 				if (args.length - 1 >= i + 1) {
-					cut = Float.parseFloat(args[++i]);
+					cut = Integer.parseInt(args[++i]);
 					System.out.println("Usando " + cut + " precisión de corte del ranking para el cómputo del MAP.");
 					break;
 				} else {
@@ -223,7 +223,7 @@ public class CACMEval {
 			case ("-evaljm"):
 				setOpIfNone(IndexOperation.TRAINING_TEST);
 				if (args.length - 1 >= i + 3) {
-					cut = Float.parseFloat(args[++i]);
+					cut = Integer.parseInt(args[++i]);
 					System.out.println("Usando " + cut + " precisión de corte del ranking para el cómputo del MAP.");
 					similarity = new LMJelinekMercerSimilarity(0);
 					String arg = args[++i];
@@ -254,7 +254,7 @@ public class CACMEval {
 			case ("-evaldir"):
 				setOpIfNone(IndexOperation.TRAINING_TEST);
 				if (args.length - 1 >= i + 3) {
-					cut = Float.parseFloat(args[++i]);
+					cut = Integer.parseInt(args[++i]);
 					System.out.println("Usando " + cut + " precisión de corte del ranking para el cómputo del MAP.");
 					similarity = new LMDirichletSimilarity(0);
 					String arg = args[++i];
@@ -363,7 +363,7 @@ public class CACMEval {
 				indexWriter.close();
 			} else if (CACMEval.OP.equals(IndexOperation.SEARCH)) {
 				MetricsManagement globalMetrics = doSearch(indexPath, similarity, queryList, top, cut, true);
-				int queryNo = globalMetrics.getQueriesSize();
+				int queryNo = queryList.get(queryList.size()-1) - queryList.get(0) + 1;
 				System.out.println("Mean P@10 for '" + queryNo + "' queries: " + globalMetrics.getMeanPAt10());
 				System.out.println("Mean P@20 for '" + queryNo + "' queries: " + globalMetrics.getMeanPAt20());
 				System.out
@@ -416,7 +416,7 @@ public class CACMEval {
 	}
 
 	static MetricsManagement doSearch(String indexPath, Similarity similarity, List<Integer> queryList, int top,
-			float cut, boolean showText) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
+			int cut, boolean showText) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
 
 		// Usamos indexpath obtenido en indexin
 		Directory dir = FSDirectory.open(Paths.get(indexPath));
@@ -445,16 +445,18 @@ public class CACMEval {
 			int rels10Count = 0;
 			int rels20Count = 0;
 			int relsCount = 0;
+			int maxDocs = Math.max(top, cut);
 			QueryType query = queryManagement.getQuery(i);
 			String escapedQuery = MultiFieldQueryParser.escape(query.getBody());
 			MultiFieldQueryParser parser = new MultiFieldQueryParser(fields, analyzer);
 			Query q = parser.parse(escapedQuery);
 			QueryMetrics metrics = new QueryMetrics(query, q);
-			TopDocs topDocs = indexSearcher.search(q, top);
+			
+			TopDocs topDocs = indexSearcher.search(q, maxDocs);
 			ScoreDoc[] scoreDocs = topDocs.scoreDocs;
 			if (showText) {
 				System.out.println("\nQuery: " + query.getBody());
-				System.out.println("Number of Top Docs: " + topDocs.scoreDocs.length);
+				System.out.println("Number of Top Docs: " + topDocs.totalHits);
 			}
 
 			for (int j = 0; j < scoreDocs.length; j++) {
@@ -462,7 +464,7 @@ public class CACMEval {
 				ScoreDoc scoredDoc = scoreDocs[j];
 				Document doc = indexReader.document(scoredDoc.doc);
 
-				if (showText) {
+				if (showText && j < top) {
 					System.out.println("\nDoc nº: " + scoredDoc.doc + ", score: " + scoredDoc.score);
 					List<IndexableField> docFields = doc.getFields();
 					for (IndexableField docField : docFields) {
@@ -480,7 +482,9 @@ public class CACMEval {
 						rels20Count++;
 					}
 					relsCount++;
-					metrics.addPrecission((float) relsCount / (j + 1));
+					if(j < cut) {
+						metrics.addPrecission((float) relsCount / (j + 1));
+					}
 				}
 			}
 			if (metrics.areValid()) {
