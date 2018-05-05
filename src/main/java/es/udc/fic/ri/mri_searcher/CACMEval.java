@@ -366,8 +366,10 @@ public class CACMEval {
 				int queryNo = globalMetrics.getQueriesSize();
 				System.out.println("Mean P@10 for '" + queryNo + "' queries: " + globalMetrics.getMeanPAt10());
 				System.out.println("Mean P@20 for '" + queryNo + "' queries: " + globalMetrics.getMeanPAt20());
-				System.out.println("Mean Recall@10 for '" + queryNo + "' queries: " + globalMetrics.getMeanRecallAt10());
-				System.out.println("Mean Recall@20 for '" + queryNo + "' queries: " + globalMetrics.getMeanRecallAt20());
+				System.out
+						.println("Mean Recall@10 for '" + queryNo + "' queries: " + globalMetrics.getMeanRecallAt10());
+				System.out
+						.println("Mean Recall@20 for '" + queryNo + "' queries: " + globalMetrics.getMeanRecallAt20());
 				System.out.println("MAP for '" + queryNo + "' queries: " + globalMetrics.getMeanAveragePrecission());
 			} else if (CACMEval.OP.equals(IndexOperation.TRAINING_TEST)) {
 				doTrainingTest(indexPath, similarity, trainingQueryList, testQueryList, cut);
@@ -410,13 +412,12 @@ public class CACMEval {
 	}
 
 	static void doTrainingTest(String indexPath, Similarity similarity, List<Integer> trainingQueryList,
-			
-		List<Integer> testQueryList, float cut) {
+			List<Integer> testQueryList, float cut) {
 
 	}
 
-	static MetricsManagement doSearch(String indexPath, Similarity similarity, List<Integer> queryList, int top, float cut, boolean showText)
-			throws IOException, org.apache.lucene.queryparser.classic.ParseException {
+	static MetricsManagement doSearch(String indexPath, Similarity similarity, List<Integer> queryList, int top,
+			float cut, boolean showText) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
 
 		// Usamos indexpath obtenido en indexin
 		Directory dir = FSDirectory.open(Paths.get(indexPath));
@@ -456,12 +457,12 @@ public class CACMEval {
 				System.out.println("\nQuery: " + query.getBody());
 				System.out.println("Number of Top Docs: " + topDocs.scoreDocs.length);
 			}
-			
+
 			for (int j = 0; j < scoreDocs.length; j++) {
 
 				ScoreDoc scoredDoc = scoreDocs[j];
 				Document doc = indexReader.document(scoredDoc.doc);
-				
+
 				if (showText) {
 					System.out.println("\nDoc nº: " + scoredDoc.doc + ", score: " + scoredDoc.score);
 					List<IndexableField> docFields = doc.getFields();
@@ -483,14 +484,14 @@ public class CACMEval {
 					metrics.addPrecission((float) relsCount / (j + 1));
 				}
 			}
-			if(metrics.areValid()) {
+			if (metrics.areValid()) {
 				metrics.computePAt10(rels10Count);
 				metrics.computePAt20(rels20Count);
 				metrics.computeRecallAt10(rels10Count);
 				metrics.computeRecallAt20(rels20Count);
 				metrics.computeAveragePrecission();
 				globalMetrics.addQueryMetrics(metrics);
-				if(showText) {
+				if (showText) {
 					// Metrica P@N para N = 10 y 20.
 					System.out.println("P@10: " + metrics.getPAt10());
 					System.out.println("P@20: " + metrics.getPAt20());
