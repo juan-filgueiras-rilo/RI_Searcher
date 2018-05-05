@@ -64,9 +64,9 @@ public class CACMEval {
 
 	public static void main(String[] args) {
 		// String indexPath = "D:\\RI\\CACMindex";
-		String indexPath = "D:\\UNI\\3º\\Recuperación de la Información\\2018-2\\index";
+		String indexPath = "D:\\UNI\\3\\Recuperacion de la Informacion\\2018-2\\index";
 		// String docsPath = "D:\\RI\\cacm";
-		String docsPath = "D:\\UNI\\3º\\Recuperación de la Información\\2018-2\\docs\\cacm.all";
+		String docsPath = "D:\\UNI\\3\\Recuperacion de la Informacion\\2018-2\\docs\\cacm.all";
 		OpenMode modo = OpenMode.CREATE;
 		float cut = 0;
 		int top = 0;
@@ -317,7 +317,7 @@ public class CACMEval {
 				setOpIfNone(IndexOperation.PRF);
 				if (args.length - 1 >= i + 1) {
 					n_terms_to_expand = Integer.parseInt(args[++i]);
-					System.out.println("Expande la query original con los mejores " + n_rel_docs + " términos.");
+					System.out.println("Se expandirá la query original con los mejores " + n_terms_to_expand + " términos.");
 					break;
 				} else {
 					System.err.println("Missing arg for -exp.\n");
@@ -378,23 +378,33 @@ public class CACMEval {
 					String queryPath = propsFile.getProperty("queryPath");
 					String qrelsPath = propsFile.getProperty("qrelsPath");
 					QueryManagement queryManagement = new QueryManagement(queryPath, qrelsPath);
-					List<String> terms_to_expand_query = new ArrayList<>();
+					MetricsManagement metricsPrePRF;
+					MetricsManagement metricsPostPRF;
+					TermsToPRF termsToPRF;
+					List<String> terms_to_expand_query;
 					String terms_expand_query = "";
-					int new_id = 0;
-					doSearch(indexPath, similarity, queryList, top, cut, false);
-					/*
-					 * Extraer mejores términos para expandir la query y meterlos en
-					 * terms_to_expand_query
-					 */
+					int new_id;
+					metricsPrePRF = doSearch(indexPath, similarity, queryList, top, cut, true);
+					termsToPRF = new TermsToPRF(metricsPrePRF.getTd(), n_rel_docs, n_terms_to_expand, indexPath);
+					termsToPRF.computeTerms();
+					terms_to_expand_query = termsToPRF.getTermsToExpandQuery();
 					for (String term : terms_to_expand_query) {
 						terms_expand_query += " " + term;
 					}
 					new_id = queryManagement.expandQuery(queryList.get(0), terms_expand_query);
 					queryList.clear();
 					queryList.add(new_id);
-					doSearch(indexPath, similarity, queryList, top, cut, false);
-					/* Extraer resultados */
-					/* Comparar resultados */
+					metricsPostPRF = doSearch(indexPath, similarity, queryList, top, cut, true);
+					if (metricsPrePRF.getQueriesSize()==metricsPostPRF.getQueriesSize()) {
+                        System.out.println("Comparación de búsquedas en PRF: \n ( Métrica - Pre PRF - Post PRF )");
+                        System.out.println("Recall@10: " + metricsPrePRF.getMeanRecallAt10() + " - " + metricsPostPRF.getMeanRecallAt10());
+                        System.out.println("Recall@20: " + metricsPrePRF.getMeanRecallAt20() + " - " + metricsPostPRF.getMeanRecallAt20());
+                        System.out.println("P@10: " + metricsPrePRF.getMeanPAt10() + " - " + metricsPostPRF.getMeanPAt10());
+                        System.out.println("P@20: " + metricsPrePRF.getMeanPAt20() + " - " + metricsPostPRF.getMeanPAt20());
+                        System.out.println("MAP: " + metricsPrePRF.getMeanAveragePrecission() + " - " + metricsPostPRF.getMeanAveragePrecission());
+                    } else {
+                        System.out.println("Ha habido un error en la comparación de los resultados.");
+                    }
 				} else {
 					System.out.println("Falta argumento -query");
 				}
@@ -451,6 +461,7 @@ public class CACMEval {
 			Query q = parser.parse(escapedQuery);
 			QueryMetrics metrics = new QueryMetrics(query, q);
 			TopDocs topDocs = indexSearcher.search(q, top);
+			globalMetrics.setTd(topDocs);
 			ScoreDoc[] scoreDocs = topDocs.scoreDocs;
 			if (showText) {
 				System.out.println("\nQuery: " + query.getBody());

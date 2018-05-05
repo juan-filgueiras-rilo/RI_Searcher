@@ -1,11 +1,15 @@
 package es.udc.fic.ri.mri_searcher;
 
+import org.apache.lucene.search.TopDocs;
+
 import java.util.List;
 import java.util.ArrayList;
 
 public class MetricsManagement {
 
 	private List<QueryMetrics> queryMetrics;
+
+	private TopDocs td;
 	
 	private float meanPAt10;
 	private float meanPAt20;
@@ -97,5 +101,13 @@ public class MetricsManagement {
 
 	public float getMeanAveragePrecission() {
 		return meanAveragePrecission;
+	}
+
+	public TopDocs getTd() {
+		return td;
+	}
+
+	public void setTd(TopDocs td) {
+		this.td = td;
 	}
 }

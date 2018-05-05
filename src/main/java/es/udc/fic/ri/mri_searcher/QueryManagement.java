@@ -47,10 +47,10 @@ public class QueryManagement {
 	}
 
 	public int expandQuery(int id, String s){
-		QueryType temp = list.get(id);
-		int new_id = list.size() + 1;
+		QueryType temp = this.getQuery(id);
+		int new_id = list.size()+1;
 		QueryType q = new QueryType(new_id);
-		String body = q.getBody() + s;
+		String body = temp.getBody() + s;
 		q.setBody(body);
 		q.setRelDocs(temp.getRelDocs());
 		list.add(q);
