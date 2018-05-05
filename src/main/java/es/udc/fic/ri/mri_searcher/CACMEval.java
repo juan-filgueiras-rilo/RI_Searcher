@@ -411,8 +411,8 @@ public class CACMEval {
 		}
 	}
 
-	static void doTrainingTest(String indexPath, Similarity similarity, List<Integer> trainingQueryList, List<Integer> testQueryList, float cut) {
-		
+	static void doTrainingTest(String indexPath, Similarity similarity, List<Integer> trainingQueryList,
+			List<Integer> testQueryList, float cut) {
 	}
 
 	static MetricsManagement doSearch(String indexPath, Similarity similarity, List<Integer> queryList, int top,
