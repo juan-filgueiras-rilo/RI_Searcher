@@ -1,6 +1,11 @@
 package es.udc.fic.ri.mri_searcher;
 
-import org.apache.lucene.index.*;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.MultiFields;
+import org.apache.lucene.index.PostingsEnum;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
@@ -9,7 +14,6 @@ import org.apache.lucene.store.FSDirectory;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 public class TermsToPRF {
@@ -31,7 +35,6 @@ public class TermsToPRF {
 
     public void computeTerms() {
         int i;
-        float score;
         Directory dir = null;
         String fieldName = "W";
         try {
@@ -39,7 +42,7 @@ public class TermsToPRF {
             DirectoryReader indexReader = DirectoryReader.open(dir);
             ScoreDoc[] scoreDocs = td.scoreDocs;
             DocList docList = new DocList();
-            if (nMaxDocs>scoreDocs.length){
+            if (nMaxDocs > td.totalHits){
                 System.out.println("Solo se han encontrado " + scoreDocs.length + " documentos, aunque el parámetro -prs tiene valor " + nMaxDocs +
                                 ". Por lo que solo se usarán estos para el PRF.");
                 nMaxDocs = scoreDocs.length;
@@ -54,24 +57,23 @@ public class TermsToPRF {
                 final String tt = termsEnum.term().utf8ToString();
                 final PostingsEnum postings = MultiFields.getTermPositionsEnum(indexReader, fieldName, new Term(fieldName, tt).bytes(), PostingsEnum.ALL);
                 int whereDoc;
-
+                Integer index = null;
+                
                 while((whereDoc = postings.nextDoc()) != PostingsEnum.NO_MORE_DOCS) {
-                    if(whereDoc >= docList.getIdMax()) {
-                        break;
-                    }
-                    postings.nextDoc();
-                }
-                Integer index = docList.containsByDocId(whereDoc);
-                if (index !=null) {
-                    Boolean encontrado = false;
-                    for (TermScore t: termsList){
-                        if (t.getTermString().equals(tt) && !encontrado){
-                            t.addTf(postings.freq(),docList.getScorebyIndex(index));
+                    if((index = docList.findByDocId(whereDoc)) != null) {
+                    	Boolean encontrado = false;
+                    	for (TermScore t: termsList){
+                            if (t.getTermString().equals(tt) && !encontrado){
+                                t.addTf(postings.freq(), docList.getScorebyIndex(index));
+                                encontrado = true;
+                                break;
+                            }
+                        }
+                        if (!encontrado){
+                            termsList.add(new TermScore(tt, postings.freq(), docList.getScorebyIndex(index), termsEnum.docFreq(), indexReader.numDocs()));
                         }
                     }
-                    if (!encontrado){
-                        termsList.add(new TermScore(tt, postings.freq(), docList.getScorebyIndex(index), termsEnum.docFreq(), indexReader.numDocs()));
-                    }
+                    postings.nextDoc();
                 }
             }
             for (TermScore termScore:termsList){
@@ -110,14 +112,6 @@ public class TermsToPRF {
             idMax = null;
         }
 
-        public Integer getIdMax() {
-            return idMax;
-        }
-
-        public Integer getIDbyIndex(int i){
-            return IDList.get(i);
-        }
-
         public Float getScorebyIndex(int i){
             return scoreList.get(i);
         }
@@ -132,7 +126,7 @@ public class TermsToPRF {
             scoreList.add(score);
         }
 
-        public Integer containsByDocId(int id){
+        public Integer findByDocId(int id){
             for(int i=0;i<IDList.size();i++){
                 if (IDList.get(i).equals(id)){
                     return i;

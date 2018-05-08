@@ -1,6 +1,5 @@
 package es.udc.fic.ri.mri_searcher;
 
-import javax.management.Query;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -12,8 +11,6 @@ public class CACMParser {
 	 * collection.
 	 */
 	public CACMParser(){}
-	
-
 
 	public static List<List<String>> parseString(StringBuffer fileContent) {
 		/* First the contents are converted to a string */

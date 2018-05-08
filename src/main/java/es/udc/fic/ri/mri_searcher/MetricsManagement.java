@@ -103,11 +103,11 @@ public class MetricsManagement {
 		return meanAveragePrecission;
 	}
 
-	public TopDocs getTd() {
+	public TopDocs getTopDocs() {
 		return td;
 	}
 
-	public void setTd(TopDocs td) {
+	public void setTopDocs(TopDocs td) {
 		this.td = td;
 	}
 }
