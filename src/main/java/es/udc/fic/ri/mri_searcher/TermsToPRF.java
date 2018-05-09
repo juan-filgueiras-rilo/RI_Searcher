@@ -36,7 +36,7 @@ public class TermsToPRF {
     public void computeTerms() {
         int i;
         Directory dir = null;
-        String fieldName = "W";
+        String[] fields = {"W", "T"};
         try {
             dir = FSDirectory.open(Paths.get(indexPath));
             DirectoryReader indexReader = DirectoryReader.open(dir);
@@ -51,30 +51,32 @@ public class TermsToPRF {
                 ScoreDoc doc = scoreDocs[i];
                 docList.addDoc(doc.doc,doc.score);
             }
-            Terms terms = MultiFields.getTerms(indexReader, fieldName);
-            TermsEnum termsEnum = terms.iterator();
-            while ((termsEnum.next() != null)) {
-                final String tt = termsEnum.term().utf8ToString();
-                final PostingsEnum postings = MultiFields.getTermPositionsEnum(indexReader, fieldName, new Term(fieldName, tt).bytes(), PostingsEnum.ALL);
-                int whereDoc;
-                Integer index = null;
-                
-                while((whereDoc = postings.nextDoc()) != PostingsEnum.NO_MORE_DOCS) {
-                    if((index = docList.findByDocId(whereDoc)) != null) {
-                    	Boolean encontrado = false;
-                    	for (TermScore t: termsList){
-                            if (t.getTermString().equals(tt) && !encontrado){
-                                t.addTf(postings.freq(), docList.getScorebyIndex(index));
-                                encontrado = true;
-                                break;
-                            }
-                        }
-                        if (!encontrado){
-                            termsList.add(new TermScore(tt, postings.freq(), docList.getScorebyIndex(index), termsEnum.docFreq(), indexReader.numDocs()));
-                        }
-                    }
-                    postings.nextDoc();
-                }
+            for (String fieldName: fields) {
+	            Terms terms = MultiFields.getTerms(indexReader, fieldName);
+	            TermsEnum termsEnum = terms.iterator();
+	            while ((termsEnum.next() != null)) {
+	                final String tt = termsEnum.term().utf8ToString();
+	                final PostingsEnum postings = MultiFields.getTermPositionsEnum(indexReader, fieldName, new Term(fieldName, tt).bytes(), PostingsEnum.ALL);
+	                int whereDoc;
+	                Integer index = null;
+	                
+	                while((whereDoc = postings.nextDoc()) != PostingsEnum.NO_MORE_DOCS) {
+	                    if((index = docList.findByDocId(whereDoc)) != null) {
+	                    	Boolean encontrado = false;
+	                    	for (TermScore t: termsList){
+	                            if (t.getTermString().equals(tt) && !encontrado){
+	                                t.addTf(postings.freq(), docList.getScorebyIndex(index));
+	                                encontrado = true;
+	                                break;
+	                            }
+	                        }
+	                        if (!encontrado){
+	                            termsList.add(new TermScore(tt, postings.freq(), docList.getScorebyIndex(index), termsEnum.docFreq(), indexReader.numDocs()));
+	                        }
+	                    }
+	                    postings.nextDoc();
+	                }
+	            }
             }
             for (TermScore termScore:termsList){
                 termScore.computeScore();
